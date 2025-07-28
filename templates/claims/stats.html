@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Performance de Traitement{% endblock %}
 
@@ -6,37 +7,180 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4">Performance de Traitement</h1>
     
-    {% if avg_processing_time %}
-    <div class="mb-4">
-        <h5>Temps moyen de traitement: {{ avg_processing_time }} heures</h5>
+    <!-- Section des nouvelles réclamations -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Nouvelle Réclamation à Traiter</h5>
+        </div>
+        <div class="card-body">
+            {% if new_reclamation %}
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <h6>Informations de la réclamation</h6>
+                        <p><strong>ID:</strong> {{ new_reclamation.id }}</p>
+                        <p><strong>Type:</strong> {{ new_reclamation.type }}</p>
+                        <p><strong>Date:</strong> {{ new_reclamation.date }}</p>
+                        <p><strong>Description:</strong> {{ new_reclamation.description }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Localisation</h6>
+                        <div id="reclamation-map" style="height: 200px; background-color: #eee; border-radius: 4px;">
+                            <p class="text-center py-5">Carte interactive montrant l'emplacement</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 d-flex align-items-center">
+                    <div class="d-grid gap-3 w-100">
+                        <button type="button" id="approveBtn" class="btn btn-success btn-lg py-3">
+                            <i class="fas fa-check-circle me-2"></i>Approuver
+                        </button>
+                        <button type="button" id="rejectBtn" class="btn btn-danger btn-lg py-3">
+                            <i class="fas fa-trash-alt me-2"></i>Supprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>Toutes les réclamations ont été traitées !
+            </div>
+            {% endif %}
+        </div>
     </div>
-    {% endif %}
     
-    <table class="table table-sm table-hover">
-        <thead>
-            <tr>
-                <th>Statut</th>
-                <th>Nombre</th>
-                <th>Pourcentage</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>En attente</td>
-                <td>{{ pending }}</td>
-                <td>{{ pending_percentage|floatformat:2 }}%</td>
-            </tr>
-            <tr>
-                <td>Acceptées</td>
-                <td>{{ accepted }}</td>
-                <td>{{ accepted_percentage|floatformat:2 }}%</td>
-            </tr>
-            <tr>
-                <td>Rejetées</td>
-                <td>{{ rejected }}</td>
-                <td>{{ rejected_percentage|floatformat:2 }}%</td>
-            </tr>
-        </tbody>
-    </table>
+    <!-- Section des statistiques -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Statistiques de Traitement</h5>
+        </div>
+        <div class="card-body">
+            {% if avg_processing_time %}
+            <div class="mb-4">
+                <h6>Temps moyen de traitement: {{ avg_processing_time }} heures</h6>
+            </div>
+            {% endif %}
+            
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Statut</th>
+                        <th>Nombre</th>
+                        <th>Pourcentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>En attente</td>
+                        <td>{{ pending }}</td>
+                        <td>{{ pending_percentage|floatformat:2 }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Acceptées</td>
+                        <td>{{ accepted }}</td>
+                        <td>{{ accepted_percentage|floatformat:2 }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Rejetées</td>
+                        <td>{{ rejected }}</td>
+                        <td>{{ rejected_percentage|floatformat:2 }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisation de la carte
+    function initMap() {
+        if ({{ new_reclamation|yesno:"true,false" }}) {
+            const lat = {{ new_reclamation.latitude|default:0 }};
+            const lng = {{ new_reclamation.longitude|default:0 }};
+            
+            if (lat && lng) {
+                const map = L.map('reclamation-map').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                L.marker([lat, lng]).addTo(map)
+                    .bindPopup("Emplacement de la réclamation");
+            }
+        }
+    }
+    
+    // Gestion des boutons
+    const approveBtn = document.getElementById('approveBtn');
+    const rejectBtn = document.getElementById('rejectBtn');
+    const reclamationId = {{ new_reclamation.id|default:'null' }};
+    
+    function handleAction(action) {
+        if (!reclamationId || reclamationId === 'null') {
+            alert("Aucune réclamation à traiter !");
+            return;
+        }
+        
+        const confirmMessages = {
+            'approve': {
+                message: `Voulez-vous vraiment approuver la réclamation #${reclamationId} ?`,
+                success: `Réclamation #${reclamationId} approuvée avec succès !`
+            },
+            'reject': {
+                message: `Attention ! La réclamation #${reclamationId} sera définitivement supprimée. Continuer ?`,
+                success: `Réclamation #${reclamationId} supprimée avec succès !`
+            }
+        };
+        
+        if (!confirm(confirmMessages[action].message)) {
+            return;
+        }
+        
+        fetch(`/api/reclamations/${reclamationId}/process/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ 
+                action: action,
+                reclamation_id: reclamationId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erreur réseau');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(confirmMessages[action].success);
+                window.location.reload();
+            } else {
+                alert(`Erreur: ${data.message || 'Action non effectuée'}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors du traitement');
+        });
+    }
+    
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => handleAction('approve'));
+    }
+    
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', () => handleAction('reject'));
+    }
+    
+    // Initialiser la carte
+    initMap();
+});
+</script>
 {% endblock %}

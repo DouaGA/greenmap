@@ -17,7 +17,54 @@ from .forms import ProfileForm
 from .models import Profile  
 from .models import Municipality 
 from django.core.exceptions import ObjectDoesNotExist
-
+from django.http import HttpResponse
+import csv
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from django.http import HttpResponse
+from openpyxl import Workbook
+from io import BytesIO
+def export_claims(request):
+    if request.method == 'POST':
+        format_type = request.POST.get('format')
+        period = request.POST.get('period', 'all')
+        
+        # Get filtered queryset based on period
+        queryset = Claim.objects.all()
+        
+        if period == 'today':
+            queryset = queryset.filter(created_at__date=timezone.now().date())
+        elif period == 'week':
+            queryset = queryset.filter(created_at__week=timezone.now().isocalendar()[1])
+        elif period == 'month':
+            queryset = queryset.filter(created_at__month=timezone.now().month)
+        elif period == 'year':
+            queryset = queryset.filter(created_at__year=timezone.now().year)
+        
+        if format_type == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="claims_{period}.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['ID', 'Title', 'Status', 'Date', 'Type'])  # Adjust fields
+            for claim in queryset:
+                writer.writerow([claim.id, claim.title, claim.status, claim.created_at, claim.type])
+            return response
+            
+        elif format_type == 'excel':
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="claims_{period}.xlsx"'
+            
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Claims"
+            ws.append(['ID', 'Title', 'Status', 'Date', 'Type'])  # Adjust fields
+            for claim in queryset:
+                ws.append([claim.id, claim.title, claim.status, claim.created_at, claim.type])
+            wb.save(response)
+            return response
+            
+    return HttpResponse('Invalid request', status=400)
 @login_required
 def dashboard(request):
     # Récupérer tous les types de réclamation

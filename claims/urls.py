@@ -7,7 +7,8 @@ urlpatterns = [
     path('map/', views.claim_map, name='claims_map'),
     path('stats/', views.claim_stats, name='claims_stats'),
     path('profile/', views.agent_profile, name='agent_profile'),
-
+    path('export/', views.export_claims, name='export_claims'),  # Add this line
+    
     path('update-status/<int:claim_id>/<str:status>/', 
          views.update_claim_status, 
          name='update_claim_status'),

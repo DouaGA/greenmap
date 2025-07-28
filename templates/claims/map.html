@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
 <style>
     #map {
         height: 600px;
@@ -42,18 +43,43 @@
         border-radius: 8px;
         margin-bottom: 20px;
     }
+    .waste-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .search-btn {
+        height: 38px;
+        margin-top: 32px;
+    }
+    .legend {
+        padding: 10px;
+        background: white;
+        border-radius: 5px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        line-height: 1.5;
+    }
+    .legend i {
+        width: 20px;
+        height: 20px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Carte Interactive des Réclamations</h1>
+        <h1 class="h2">Carte Interactive des Signalements</h1>
     </div>
 
     <div class="filter-container">
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="form-group">
                     <label for="status-filter">Statut</label>
                     <select id="status-filter" class="form-control">
@@ -64,22 +90,43 @@
                     </select>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="form-group">
-                    <label for="type-filter">Type</label>
+                    <label for="type-filter">Type :</label>
                     <select id="type-filter" class="form-control">
                         <option value="all">Tous types</option>
-                        {% for claim_type in claim_types %}
-                        <option value="{{ claim_type.id }}">{{ claim_type.name }}</option>
-                        {% endfor %}
+                        <optgroup label="Déchets">
+                            <option value="plastic">Plastique</option>
+                            <option value="glass">Verre</option>
+                            <option value="paper">Papier/Carton</option>
+                            <option value="metal">Métal</option>
+                            <option value="organic">Organique</option>
+                            <option value="electronic">Électronique</option>
+                            <option value="hazardous">Dangereux</option>
+                            <option value="construction">BTP</option>
+                        </optgroup>
+                        <optgroup label="Autres">
+                            <option value="hole">Puits/Trou</option>
+                            <option value="illegal_dumping">Dépôt sauvage</option>
+                            <option value="water">Problème eau</option>
+                            <option value="other">Autre</option>
+                        </optgroup>
                     </select>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="form-group">
                     <label for="date-filter">Date</label>
                     <input type="date" id="date-filter" class="form-control">
                 </div>
+            </div>
+            <div class="col-md-3">
+                <button id="search-btn" class="btn btn-primary search-btn">
+                    <i class="fas fa-search"></i> Rechercher
+                </button>
+                <button id="reset-btn" class="btn btn-secondary search-btn ml-2">
+                    <i class="fas fa-undo"></i> Réinitialiser
+                </button>
             </div>
         </div>
     </div>
@@ -93,7 +140,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialisation de la carte
-    const map = L.map('map').setView([34.0, -7.0], 6); // Centré sur le Maroc par défaut
+    const map = L.map('map').setView([39.5, -3.0], 6); // Centré sur l'Espagne
     
     // Couche OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -101,16 +148,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }).addTo(map);
 
     // Dictionnaire des marqueurs
-    const markers = {};
+    let markers = {};
     
-    // Icônes personnalisées
+    // Icônes personnalisées avec couleur par type de signalement
     function createCustomIcon(claim) {
         const statusClass = claim.status === 'pending' ? 'pending' : 
                           claim.status === 'accepted' ? 'accepted' : 'rejected';
         
+        // Couleur par type de signalement
+        const typeColors = {
+            // Déchets
+            'plastic': '#0095B6',
+            'glass': '#00B34D',
+            'paper': '#FFD700',
+            'metal': '#A9A9A9',
+            'organic': '#8B4513',
+            'electronic': '#00008B',
+            'hazardous': '#FF0000',
+            'construction': '#696969',
+            
+            // Autres
+            'hole': '#8B0000',
+            'illegal_dumping': '#4B0082',
+            'water': '#1E90FF',
+            'other': '#800080'
+        };
+        
+        const color = typeColors[claim.waste_type] || '#3388ff';
+        
         const iconHtml = `
-            <div class="marker-icon ${statusClass}">
-                ${claim.id}
+            <div class="marker-icon ${statusClass}" style="background-color: ${color}">
+                ${claim.waste_type ? claim.waste_type.charAt(0).toUpperCase() : claim.id}
             </div>
         `;
         
@@ -121,26 +189,105 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Charger les réclamations
+    // Ajouter une légende
+    function addLegend() {
+        const legend = L.control({position: 'bottomright'});
+
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            const types = {
+                'plastic': 'Plastique',
+                'glass': 'Verre',
+                'paper': 'Papier',
+                'metal': 'Métal',
+                'organic': 'Organique',
+                'electronic': 'Électronique',
+                'hazardous': 'Dangereux',
+                'construction': 'BTP',
+                'hole': 'Puits/Trou',
+                'illegal_dumping': 'Dépôt sauvage',
+                'water': 'Problème eau',
+                'other': 'Autre'
+            };
+            const colors = {
+                'plastic': '#0095B6',
+                'glass': '#00B34D',
+                'paper': '#FFD700',
+                'metal': '#A9A9A9',
+                'organic': '#8B4513',
+                'electronic': '#00008B',
+                'hazardous': '#FF0000',
+                'construction': '#696969',
+                'hole': '#8B0000',
+                'illegal_dumping': '#4B0082',
+                'water': '#1E90FF',
+                'other': '#800080'
+            };
+
+            let labels = ['<strong>Types de signalement</strong>'];
+            
+            for (const type in types) {
+                labels.push(
+                    `<i style="background:${colors[type]}"></i> ${types[type]}`
+                );
+            }
+            
+            labels.push('<br><strong>Statuts</strong>');
+            labels.push('<i style="background:#ffc107"></i> En attente');
+            labels.push('<i style="background:#28a745"></i> Accepté');
+            labels.push('<i style="background:#dc3545"></i> Rejeté');
+
+            div.innerHTML = labels.join('<br>');
+            return div;
+        };
+
+        legend.addTo(map);
+    }
+
+    // Charger les signalements avec filtres
     function loadClaims() {
         const status = document.getElementById('status-filter').value;
-        const claimType = document.getElementById('type-filter').value;
+        const wasteType = document.getElementById('type-filter').value;
         const date = document.getElementById('date-filter').value;
         
         // Construction de l'URL avec les filtres
         let url = '/api/claims/?';
         if (status !== 'all') url += `status=${status}&`;
-        if (claimType !== 'all') url += `claim_type=${claimType}&`;
+        if (wasteType !== 'all') url += `waste_type=${wasteType}&`;
         if (date) url += `date=${date}`;
         
         // Supprimer les marqueurs existants
         Object.values(markers).forEach(marker => map.removeLayer(marker));
         markers = {};
         
+        // Afficher un loader pendant le chargement
+        const loader = L.marker(map.getCenter(), {
+            icon: L.divIcon({
+                html: '<div class="spinner-border text-primary"></div>',
+                className: 'loader-marker',
+                iconSize: [40, 40]
+            })
+        }).addTo(map);
+        
         // Requête AJAX
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                map.removeLayer(loader); // Retirer le loader
+                
+                if (data.length === 0) {
+                    // Aucun résultat trouvé
+                    L.marker(map.getCenter(), {
+                        icon: L.divIcon({
+                            html: '<div class="alert alert-info">Aucun signalement trouvé</div>',
+                            className: 'no-results-marker',
+                            iconSize: [200, 50]
+                        })
+                    }).addTo(map);
+                    return;
+                }
+                
+                // Ajouter tous les marqueurs
                 data.forEach(claim => {
                     const marker = L.marker(
                         [claim.location_lat, claim.location_lng],
@@ -151,10 +298,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const popupContent = `
                         <div class="info-window">
                             <h5>${claim.title}</h5>
-                            <p><strong>Type:</strong> ${claim.claim_type.name}</p>
+                            <p><strong>Type:</strong> ${claim.waste_type_display || 'Non spécifié'}</p>
                             <p><strong>Statut:</strong> ${claim.status_display}</p>
                             <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
                             <p>${claim.description.substring(0, 100)}${claim.description.length > 100 ? '...' : ''}</p>
+                            ${claim.image_url ? `<img src="${claim.image_url}" style="max-width: 100%; max-height: 150px; margin-top: 10px;">` : ''}
                             ${claim.status === 'pending' ? `
                             <div class="mt-2">
                                 <button class="btn btn-sm btn-success" 
@@ -167,17 +315,40 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </button>
                             </div>
                             ` : ''}
+                            <div class="mt-2">
+                                <a href="/claims/detail/${claim.id}/" class="btn btn-sm btn-info">
+                                    Voir détails
+                                </a>
+                            </div>
                         </div>
                     `;
                     
                     marker.bindPopup(popupContent);
                     markers[claim.id] = marker;
                 });
+                
+                // Ajuster la vue de la carte pour afficher tous les marqueurs
+                if (data.length > 0) {
+                    const markerGroup = new L.featureGroup(Object.values(markers));
+                    map.fitBounds(markerGroup.getBounds());
+                }
             })
-            .catch(error => console.error('Erreur:', error));
+            .catch(error => {
+                console.error('Erreur:', error);
+                map.removeLayer(loader);
+                
+                // Afficher un message d'erreur
+                L.marker(map.getCenter(), {
+                    icon: L.divIcon({
+                        html: '<div class="alert alert-danger">Erreur lors du chargement</div>',
+                        className: 'error-marker',
+                        iconSize: [200, 50]
+                    })
+                }).addTo(map);
+            });
     }
 
-    // Mettre à jour le statut d'une réclamation
+    // Mettre à jour le statut d'un signalement
     window.updateClaimStatus = function(claimId, status) {
         fetch(`/claims/update-status/${claimId}/${status}/`, {
             method: 'POST',
@@ -189,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                loadClaims(); // Recharger les réclamations
+                loadClaims(); // Recharger les signalements
             } else {
                 alert("Erreur lors de la mise à jour");
             }
@@ -197,13 +368,21 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => console.error('Erreur:', error));
     }
 
-    // Écouteurs d'événements pour les filtres
-    document.getElementById('status-filter').addEventListener('change', loadClaims);
-    document.getElementById('type-filter').addEventListener('change', loadClaims);
-    document.getElementById('date-filter').addEventListener('change', loadClaims);
+    // Réinitialiser les filtres
+    function resetFilters() {
+        document.getElementById('status-filter').value = 'all';
+        document.getElementById('type-filter').value = 'all';
+        document.getElementById('date-filter').value = '';
+        loadClaims();
+    }
 
-    // Chargement initial
+    // Écouteurs d'événements
+    document.getElementById('search-btn').addEventListener('click', loadClaims);
+    document.getElementById('reset-btn').addEventListener('click', resetFilters);
+
+    // Chargement initial et ajout de la légende
     loadClaims();
+    addLegend();
 });
 </script>
 {% endblock %}

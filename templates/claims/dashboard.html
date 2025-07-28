@@ -3,7 +3,9 @@
 {% block title %}Dashboard des Réclamations{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
+    /* Styles généraux */
     .no-data-placeholder {
         position: absolute;
         top: 50%;
@@ -21,28 +23,46 @@
         color: #adb5bd;
     }
 
-    /* Styles améliorés des cartes statistiques */
+    /* Cartes statistiques */
     .stat-card {
         border-radius: 10px;
         transition: all 0.3s ease;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         border: none;
+        overflow: hidden;
     }
+    
     .stat-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 6px 10px rgba(0,0,0,0.15);
     }
+    
     .stat-card .card-body {
         padding: 1.5rem;
     }
+    
     .stat-card h6 {
         font-size: 0.9rem;
         opacity: 0.9;
         margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
+    
     .stat-card h2 {
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 0;
+        font-size: 2rem;
+    }
+    
+    .stat-card .icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(255,255,255,0.2);
     }
 
     /* Conteneurs des graphiques */
@@ -52,38 +72,61 @@
         position: relative;
     }
     
-    /* Styles des éléments de réclamation */
+    .bar-chart-container {
+        height: 100%;
+        padding: 10px;
+    }
+    
+    .radar-chart-container {
+        height: 100%;
+        padding: 20px;
+    }
+
+    /* Styles des réclamations */
     .claim-item {
         border-left: 4px solid transparent;
         transition: all 0.3s;
         padding: 1rem;
-    }
-    .claim-item:hover {
-        background-color: #f8f9fa;
-    }
-    .pending-item {
-        border-left-color: #ffc107;
-    }
-    .accepted-item {
-        border-left-color: #28a745;
-    }
-    .rejected-item {
-        border-left-color: #dc3545;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
     }
     
-    /* En-têtes des cartes */
+    .claim-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+    
+    .pending-item {
+        border-left-color: #ffc107;
+        background-color: rgba(255, 193, 7, 0.05);
+    }
+    
+    .accepted-item {
+        border-left-color: #28a745;
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+    
+    .rejected-item {
+        border-left-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.05);
+    }
+    
+    /* En-têtes */
     .card-header {
         background-color: #f8f9fa;
         border-bottom: 1px solid #eee;
         padding: 1rem 1.5rem;
+        border-radius: 10px 10px 0 0 !important;
     }
+    
     .card-header h5 {
         margin: 0;
         font-size: 1.1rem;
-        font-weight: 500;
+        font-weight: 600;
+        color: #343a40;
     }
     
-    /* Boutons d'action */
+    /* Boutons */
     .btn-action {
         width: 30px;
         height: 30px;
@@ -91,73 +134,123 @@
         align-items: center;
         justify-content: center;
         padding: 0;
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+    
+    .btn-action:hover {
+        transform: scale(1.1);
     }
 
-    /* Style spécifique pour le pie chart */
-    .pie-chart-container {
-        position: relative;
-        margin: auto;
-        width: 90%;
+    /* Couleurs spécifiques */
+    .bg-pending {
+        background-color: #ffc107 !important;
+    }
+    
+    .bg-accepted {
+        background-color: #28a745 !important;
+    }
+    
+    .bg-rejected {
+        background-color: #dc3545 !important;
+    }
+    
+    .text-pending {
+        color: #ffc107 !important;
+    }
+    
+    .text-accepted {
+        color: #28a745 !important;
+    }
+    
+    .text-rejected {
+        color: #dc3545 !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <!-- En-tête amélioré -->
+    <!-- En-tête -->
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-        <h1 class="h2 mb-0">Dashboard des Réclamations</h1>
+        <h1 class="h2 mb-0">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard des Réclamations
+        </h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <div class="btn-group mr-2">
-                <a href="{% url 'claims_map' %}" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-map-marked-alt"></i> Voir la carte
+            <div class="btn-group me-2">
+                <a href="{% url 'claims_map' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-map-marked-alt me-1"></i> Vue Carte
                 </a>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">
+                    <i class="fas fa-file-export me-1"></i> Exporter
+                </button>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown">
+                    <i class="fas fa-calendar-alt me-1"></i> Période
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <li><a class="dropdown-item" href="?period=today">Aujourd'hui</a></li>
+                    <li><a class="dropdown-item" href="?period=week">Cette semaine</a></li>
+                    <li><a class="dropdown-item" href="?period=month">Ce mois</a></li>
+                    <li><a class="dropdown-item" href="?period=year">Cette année</a></li>
+                    <li><a class="dropdown-item" href="?period=all">Toutes les périodes</a></li>
+                </ul>
             </div>
         </div>
     </div>
 
-    <!-- Cartes de statut améliorées -->
+    <!-- Cartes de statut -->
     <div class="row mb-4">
-        <!-- Carte Réclamations en attente -->
+        <!-- En attente -->
         <div class="col-xl-4 col-md-6 mb-4">
-            <div class="card stat-card bg-warning text-white">
+            <div class="card stat-card bg-pending text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="card-title text-white-50">EN ATTENTE</h6>
+                            <h6><i class="fas fa-clock me-1"></i> EN ATTENTE</h6>
                             <h2 class="mb-0">{{ total_pending }}</h2>
+                            <small class="opacity-75">{{ pending_percentage }}% du total</small>
                         </div>
-                        <i class="fas fa-clock fa-2x opacity-50"></i>
+                        <div class="icon-wrapper">
+                            <i class="fas fa-hourglass-half fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Carte Réclamations acceptées -->
+        <!-- Acceptées -->
         <div class="col-xl-4 col-md-6 mb-4">
-            <div class="card stat-card bg-success text-white">
+            <div class="card stat-card bg-accepted text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="card-title text-white-50">ACCEPTÉES</h6>
+                            <h6><i class="fas fa-check-circle me-1"></i> ACCEPTÉES</h6>
                             <h2 class="mb-0">{{ total_accepted }}</h2>
+                            <small class="opacity-75">{{ accepted_percentage }}% du total</small>
                         </div>
-                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        <div class="icon-wrapper">
+                            <i class="fas fa-thumbs-up fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Carte Réclamations rejetées -->
+        <!-- Rejetées -->
         <div class="col-xl-4 col-md-6 mb-4">
-            <div class="card stat-card bg-danger text-white">
+            <div class="card stat-card bg-rejected text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="card-title text-white-50">REJETÉES</h6>
+                            <h6><i class="fas fa-times-circle me-1"></i> REJETÉES</h6>
                             <h2 class="mb-0">{{ total_rejected }}</h2>
+                            <small class="opacity-75">{{ rejected_percentage }}% du total</small>
                         </div>
-                        <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                        <div class="icon-wrapper">
+                            <i class="fas fa-thumbs-down fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -166,14 +259,14 @@
 
     <!-- Graphiques - Ligne 1 -->
     <div class="row mb-4">
-        <!-- Graphique par type -->
+        <!-- Graphique par type (Radar) -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">RÉPARTITION PAR TYPE</h5>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-radar me-2"></i>RÉPARTITION PAR TYPE</h5>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container pie-chart-container">
+                    <div class="chart-container radar-chart-container">
                         <canvas id="typeChart"></canvas>
                         {% if not has_data %}
                         <div class="no-data-placeholder">
@@ -186,11 +279,11 @@
             </div>
         </div>
 
-        <!-- Graphique évolution -->
+        <!-- Graphique évolution (Ligne) -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">ÉVOLUTION (30 DERNIERS JOURS)</h5>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>ÉVOLUTION (30 JOURS)</h5>
                 </div>
                 <div class="card-body">
                     <div class="chart-container">
@@ -206,11 +299,11 @@
             </div>
         </div>
 
-        <!-- Graphique par statut -->
+        <!-- Graphique par statut (Doughnut) -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">RÉPARTITION PAR STATUT</h5>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>RÉPARTITION PAR STATUT</h5>
                 </div>
                 <div class="card-body">
                     <div class="chart-container">
@@ -229,93 +322,152 @@
 
     <!-- Dernières réclamations - Ligne 2 -->
     <div class="row">
-        <!-- Réclamations en attente -->
+        <!-- En attente -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0">DERNIÈRES EN ATTENTE</h5>
+                <div class="card-header bg-pending text-white">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>DERNIÈRES EN ATTENTE</h5>
                 </div>
-                <div class="list-group list-group-flush">
-                    {% for claim in pending_claims %}
-                    <div class="list-group-item claim-item pending-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 font-weight-bold">{{ claim.title }}</h6>
-                            <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for claim in pending_claims %}
+                        <div class="list-group-item claim-item pending-item">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 font-weight-bold">{{ claim.title|truncatechars:30 }}</h6>
+                                <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                            </div>
+                            <p class="mb-2 text-muted small">{{ claim.description|truncatechars:60 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-pending">
+                                    <i class="fas fa-clock"></i> En attente depuis {{ claim.created_at|timesince }}
+                                </small>
+                                <div>
+                                    <button class="btn btn-success btn-action me-1" title="Accepter" onclick="updateClaimStatus({{ claim.id }}, 'accepted')">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-action" title="Rejeter" onclick="updateClaimStatus({{ claim.id }}, 'rejected')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <p class="mb-2 text-muted small">{{ claim.description|truncatechars:50 }}</p>
-                        <div class="d-flex justify-content-end">
-                            <button class="btn btn-success btn-action mr-2" onclick="updateClaimStatus({{ claim.id }}, 'accepted')">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button class="btn btn-danger btn-action" onclick="updateClaimStatus({{ claim.id }}, 'rejected')">
-                                <i class="fas fa-times"></i>
-                            </button>
+                        {% empty %}
+                        <div class="list-group-item text-center py-4">
+                            <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
+                            <p class="mb-0 text-muted">Aucune réclamation en attente</p>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                    <div class="list-group-item">
-                        <p class="mb-0 text-muted">Aucune réclamation en attente</p>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
         
-        <!-- Réclamations acceptées -->
+        <!-- Acceptées -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">DERNIÈRES ACCEPTÉES</h5>
+                <div class="card-header bg-accepted text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>DERNIÈRES ACCEPTÉES</h5>
                 </div>
-                <div class="list-group list-group-flush">
-                    {% for claim in accepted_claims %}
-                    <div class="list-group-item claim-item accepted-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 font-weight-bold">{{ claim.title }}</h6>
-                            <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for claim in accepted_claims %}
+                        <div class="list-group-item claim-item accepted-item">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 font-weight-bold">{{ claim.title|truncatechars:30 }}</h6>
+                                <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                            </div>
+                            <p class="mb-2 text-muted small">{{ claim.description|truncatechars:60 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-accepted">
+                                    <i class="fas fa-check-circle"></i> Acceptée le {{ claim.updated_at|date:"d/m/Y" }}
+                                </small>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="showClaimDetails({{ claim.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
-                        <p class="mb-2 text-muted small">{{ claim.description|truncatechars:50 }}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-success">
-                                <i class="fas fa-check-circle"></i> Acceptée le {{ claim.updated_at|date:"d/m/Y" }}
-                            </small>
+                        {% empty %}
+                        <div class="list-group-item text-center py-4">
+                            <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
+                            <p class="mb-0 text-muted">Aucune réclamation acceptée</p>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                    <div class="list-group-item">
-                        <p class="mb-0 text-muted">Aucune réclamation acceptée</p>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
         
-        <!-- Réclamations rejetées -->
+        <!-- Rejetées -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">DERNIÈRES REJETÉES</h5>
+                <div class="card-header bg-rejected text-white">
+                    <h5 class="mb-0"><i class="fas fa-times-circle me-2"></i>DERNIÈRES REJETÉES</h5>
                 </div>
-                <div class="list-group list-group-flush">
-                    {% for claim in rejected_claims %}
-                    <div class="list-group-item claim-item rejected-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 font-weight-bold">{{ claim.title }}</h6>
-                            <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for claim in rejected_claims %}
+                        <div class="list-group-item claim-item rejected-item">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 font-weight-bold">{{ claim.title|truncatechars:30 }}</h6>
+                                <small class="text-muted">{{ claim.created_at|date:"d/m/Y" }}</small>
+                            </div>
+                            <p class="mb-2 text-muted small">{{ claim.description|truncatechars:60 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-rejected">
+                                    <i class="fas fa-times-circle"></i> Rejetée le {{ claim.updated_at|date:"d/m/Y" }}
+                                </small>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="showClaimDetails({{ claim.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
-                        <p class="mb-2 text-muted small">{{ claim.description|truncatechars:50 }}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-danger">
-                                <i class="fas fa-times-circle"></i> Rejetée le {{ claim.updated_at|date:"d/m/Y" }}
-                            </small>
+                        {% empty %}
+                        <div class="list-group-item text-center py-4">
+                            <i class="fas fa-times-circle fa-2x text-muted mb-2"></i>
+                            <p class="mb-0 text-muted">Aucune réclamation rejetée</p>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                    <div class="list-group-item">
-                        <p class="mb-0 text-muted">Aucune réclamation rejetée</p>
-                    </div>
-                    {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Export -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">Exporter les données</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm" method="post" action="{% url 'export_claims' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="exportFormat" class="form-label">Format</label>
+                        <select class="form-select" id="exportFormat" name="format" required>
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="exportRange" class="form-label">Période</label>
+                        <select class="form-select" id="exportRange" name="period" required>
+                            <option value="all">Toutes les données</option>
+                            <option value="today">Aujourd'hui</option>
+                            <option value="week">Cette semaine</option>
+                            <option value="month">Ce mois</option>
+                            <option value="year">Cette année</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" form="exportForm" class="btn btn-primary">Exporter</button>
             </div>
         </div>
     </div>
@@ -327,6 +479,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Couleurs cohérentes pour tous les graphiques
+    const chartColors = {
+        pending: '#ffc107',
+        accepted: '#28a745',
+        rejected: '#dc3545',
+        others: ['#17a2b8', '#6c757d', '#343a40', '#6610f2', '#fd7e14']
+    };
+
     // Fonction pour masquer les placeholders
     function hidePlaceholder(canvasId) {
         const placeholder = document.querySelector(`#${canvasId}`).parentNode.querySelector('.no-data-placeholder');
@@ -335,22 +495,87 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Fonction pour créer un graphique avec gestion des données vides
-    function createChartWithEmptyData(canvasId, chartType, labels, data, colors) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+    // Graphique par type (Radar)
+    const typeCtx = document.getElementById('typeChart').getContext('2d');
+    if ({{ type_data|safe }}.some(item => item > 0)) {
+        hidePlaceholder('typeChart');
         
-        // Si données valides, masquer le placeholder
-        if (data && data.some(item => item > 0)) {
-            hidePlaceholder(canvasId);
-        }
-        
-        return new Chart(ctx, {
-            type: chartType,
+        new Chart(typeCtx, {
+            type: 'radar',
             data: {
-                labels: labels,
+                labels: {{ type_labels|safe }},
                 datasets: [{
-                    data: data,
-                    backgroundColor: colors,
+                    label: 'Nombre de réclamations',
+                    data: {{ type_data|safe }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#dc3545',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        suggestedMin: 0,
+                        ticks: {
+                            backdropColor: 'rgba(255, 255, 255, 0.8)',
+                            color: '#6c757d',
+                            font: {
+                                size: 10
+                            },
+                            stepSize: 1
+                        },
+                        pointLabels: {
+                            font: {
+                                size: 11
+                            },
+                            color: '#495057'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${context.raw} réclamation(s)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Graphique par statut (Doughnut)
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    if ({{ status_data|safe }}.some(item => item > 0)) {
+        hidePlaceholder('statusChart');
+        
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ status_labels|safe }},
+                datasets: [{
+                    data: {{ status_data|safe }},
+                    backgroundColor: [
+                        chartColors.pending,
+                        chartColors.accepted,
+                        chartColors.rejected
+                    ],
                     borderWidth: 1,
                     borderColor: '#fff'
                 }]
@@ -360,16 +585,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right'
+                        position: 'right',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: {
+                                size: 12
+                            }
+                        }
                     },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = Math.round((value / total) * 100);
-                                return `${label}: ${value} (${percentage}%)`;
+                                const percentage = Math.round((context.raw / total) * 100);
+                                return `${context.label}: ${context.raw} (${percentage}%)`;
                             }
                         }
                     },
@@ -385,6 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 },
+                cutout: '70%',
                 animation: {
                     animateScale: true,
                     animateRotate: true
@@ -394,67 +626,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Graphique par type
-    createChartWithEmptyData(
-        'typeChart', 
-        'pie',
-        {{ type_labels|safe }},
-        {{ type_data|safe }},
-        ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
-    );
-
-    // Graphique par statut
-    createChartWithEmptyData(
-        'statusChart', 
-        'pie',
-        {{ status_labels|safe }},
-        {{ status_data|safe }},
-        ['#ffc107', '#28a745', '#dc3545']
-    );
-
-    // Graphique d'évolution
+    // Graphique d'évolution (Ligne)
     const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
     if ({{ daily_counts|safe }}.some(item => item > 0)) {
         hidePlaceholder('evolutionChart');
-    }
-    
-    new Chart(evolutionCtx, {
-        type: 'line',
-        data: {
-            labels: {{ dates|safe }},
-            datasets: [{
-                label: 'Nombre de réclamations',
-                data: {{ daily_counts|safe }},
-                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
+        
+        new Chart(evolutionCtx, {
+            type: 'line',
+            data: {
+                labels: {{ dates|safe }},
+                datasets: [{
+                    label: 'Réclamations',
+                    data: {{ daily_counts|safe }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderColor: chartColors.accepted,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: chartColors.accepted,
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            drawBorder: false,
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            color: '#6c757d',
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Nombre de réclamations',
+                            color: '#6c757d'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#6c757d'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#6c757d'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw}`;
+                            }
+                        }
+                    }
                 }
             }
-        }
-    });
-});
-document.getElementById('postal_code').addEventListener('blur', function() {
-    const postalCode = this.value.trim();
-    if (postalCode.length >= 2) {
-        fetch(`/api/municipality/?postal_code=${postalCode}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.municipality) {
-                    document.getElementById('id_municipality').value = data.municipality.id;
-                    // Mettre à jour d'autres champs si nécessaire
-                }
-            });
+        });
     }
 });
+
+// Fonction pour mettre à jour le statut d'une réclamation
 function updateClaimStatus(claimId, status) {
     fetch(`/claims/update-status/${claimId}/${status}/`, {
         method: 'POST',
@@ -467,13 +714,18 @@ function updateClaimStatus(claimId, status) {
         if (response.ok) {
             window.location.reload();
         } else {
-            alert("Une erreur s'est produite");
+            alert("Une erreur s'est produite lors de la mise à jour");
         }
     })
     .catch(error => {
         console.error('Error:', error);
         alert("Erreur réseau");
     });
+}
+
+// Fonction pour afficher les détails d'une réclamation
+function showClaimDetails(claimId) {
+    window.location.href = `/claims/${claimId}/`;
 }
 </script>
 {% endblock %}
