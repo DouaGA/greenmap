@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>TrulyClaims - {% block title %}{% endblock %}</title>
+    <title>GreenMap - {% block title %}{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
@@ -20,28 +20,78 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     
+    <style>
+        :root {
+            --red: #DF2E38;       /* Rouge vif */
+            --cream: #FFFFFF;     /* Changé en blanc */
+            --light-green: #C7E8CA; /* Vert clair */
+            --dark-green: #5D9C59;  /* Vert foncé */
+        }
+        
+        body {
+            background-color: white; /* Fond blanc */
+        }
+        
+        .navbar {
+            background-color: var(--dark-green) !important;
+        }
+        
+        .dropdown-menu {
+            background-color: var(--cream);
+            border: 1px solid var(--light-green);
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--light-green);
+        }
+        
+        .sidebar {
+            background-color: white;
+            border-right: 1px solid var(--light-green);
+        }
+        
+        .sidebar .nav-link {
+            color: var(--dark-green);
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: var(--light-green);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: var(--dark-green);
+            color: white;
+        }
+    </style>
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow">
+    <nav class="navbar navbar-dark fixed-top flex-md-nowrap p-0 shadow">
         <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="{% url 'claims_dashboard' %}">
-            <i class="fas fa-map-marked-alt mr-2"></i> TrulyClaims
+            <img src="{{ request.user.profile.image.url }}" 
+                 alt="Photo de profil" 
+                 style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px;">
+            <span style="color: white;">GreenMap</span>
         </a>
         
         <ul class="navbar-nav px-3 ml-auto">
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown">
-                    <i class="fas fa-user-circle mr-1"></i> {{ request.user.username }}
+                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" style="color: white;">
+                    <img src="{{ request.user.profile.image.url }}" 
+                         alt="Photo de profil" 
+                         style="width: 25px; height: 25px; border-radius: 50%; margin-right: 5px;">
+                    {{ request.user.username }}
                 </a>
                 <div class="dropdown-menu dropdown-menu-right">
-                    <a class="dropdown-item" href="#">
-                        <i class="fas fa-user mr-2"></i> Profil
+                    <a class="dropdown-item" href="{% url 'agent_profile' %}">
+                        <i class="fas fa-user mr-2" style="color: var(--dark-green);"></i> Profil
                     </a>
                     <div class="dropdown-divider"></div>
                     <form action="{% url 'logout' %}" method="post" class="dropdown-item-form">
                         {% csrf_token %}
                         <button type="submit" class="dropdown-item">
-                            <i class="fas fa-sign-out-alt mr-2"></i> Déconnexion
+                            <i class="fas fa-sign-out-alt mr-2" style="color: var(--red);"></i> Déconnexion
                         </button>
                     </form>
                 </div>
@@ -53,7 +103,7 @@
         <div class="row">
             {% include 'partials/_sidebar.html' %}
 
-            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4" style="background-color: white;">
                 {% include 'partials/_messages.html' %}
                 {% block content %}{% endblock %}
             </main>

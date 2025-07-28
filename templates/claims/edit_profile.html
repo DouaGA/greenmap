@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0"><i class="fas fa-user-edit me-2"></i>Modifier le Profil</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Colonne gauche -->
+                    <div class="col-md-6">
+                        <!-- Informations de base -->
+                        <h5 class="mb-3 border-bottom pb-2">Informations Personnelles</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Prénom</label>
+                            <input type="text" class="form-control" name="first_name" 
+                                   value="{{ form.first_name.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Nom</label>
+                            <input type="text" class="form-control" name="last_name" 
+                                   value="{{ form.last_name.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" 
+                                   value="{{ form.email.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Téléphone</label>
+                            <input type="text" class="form-control" name="phone" 
+                                   value="{{ form.phone.value|default:'' }}">
+                        </div>
+                    </div>
+                    
+                    <!-- Colonne droite -->
+                    <div class="col-md-6">
+                        <!-- Photo de profil -->
+                        <h5 class="mb-3 border-bottom pb-2">Photo de Profil</h5>
+                        
+                        <div class="text-center mb-3">
+                            {% if form.instance.image %}
+                            <img src="{{ form.instance.image.url }}" class="rounded-circle mb-3" 
+                                 width="150" height="150" style="object-fit: cover;">
+                            {% endif %}
+                            <input type="file" class="form-control" name="image" accept="image/*">
+                        </div>
+                        
+                        <!-- Autres informations -->
+                        <h5 class="mb-3 border-bottom pb-2">Informations Supplémentaires</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Adresse</label>
+                            <textarea class="form-control" name="address" rows="2">{{ form.address.value|default:'' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Municipalité</label>
+                            <select class="form-select" name="municipality">
+                                <option value="">Sélectionnez...</option>
+                                {% for mun in municipalities %}
+                                <option value="{{ mun.id }}" {% if form.municipality.value == mun.id %}selected{% endif %}>
+                                    {{ mun.name }} ({{ mun.wilaya }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" name="bio" rows="3">{{ form.bio.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'agent_profile' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
