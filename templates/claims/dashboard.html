@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard des Réclamations{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 300px;
+        min-height: 300px;
+    }
+    .status-card {
+        transition: transform 0.3s;
+    }
+    .status-card:hover {
+        transform: translateY(-5px);
+    }
+    .claim-item {
+        border-left: 4px solid transparent;
+        transition: all 0.3s;
+    }
+    .claim-item:hover {
+        background-color: #f8f9fa;
+    }
+    .pending-item {
+        border-left-color: #ffc107;
+    }
+    .accepted-item {
+        border-left-color: #28a745;
+    }
+    .rejected-item {
+        border-left-color: #dc3545;
+    }
+    #statusChart {
+        max-height: 280px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Dashboard des Réclamations</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <a href="{% url 'claims_map' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-map-marked-alt"></i> Voir la carte
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartes de statut -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card status-card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">EN ATTENTE</h6>
+                            <h2 class="mb-0">{{ total_pending }}</h2>
+                        </div>
+                        <i class="fas fa-clock fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card status-card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">ACCEPTÉES</h6>
+                            <h2 class="mb-0">{{ total_accepted }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card status-card text-white bg-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">REJETÉES</h6>
+                            <h2 class="mb-0">{{ total_rejected }}</h2>
+                        </div>
+                        <i class="fas fa-times-circle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Répartition par Type</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Évolution (30 derniers jours)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="evolutionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Répartition par Statut</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dernières réclamations -->
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">Dernières en attente</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for claim in pending_claims %}
+                    <div class="list-group-item claim-item pending-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">{{ claim.title }}</h6>
+                            <small>{{ claim.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        <p class="mb-1 text-muted">{{ claim.description|truncatechars:50 }}</p>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-success" onclick="updateClaimStatus({{ claim.id }}, 'accepted')">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="updateClaimStatus({{ claim.id }}, 'rejected')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item">
+                        <p class="mb-0 text-muted">Aucune réclamation en attente</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Dernières acceptées</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for claim in accepted_claims %}
+                    <div class="list-group-item claim-item accepted-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">{{ claim.title }}</h6>
+                            <small>{{ claim.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        <p class="mb-1 text-muted">{{ claim.description|truncatechars:50 }}</p>
+                        <small class="text-success">
+                            <i class="fas fa-check-circle"></i> Acceptée le {{ claim.updated_at|date:"d/m/Y" }}
+                        </small>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item">
+                        <p class="mb-0 text-muted">Aucune réclamation acceptée</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Dernières rejetées</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for claim in rejected_claims %}
+                    <div class="list-group-item claim-item rejected-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">{{ claim.title }}</h6>
+                            <small>{{ claim.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        <p class="mb-1 text-muted">{{ claim.description|truncatechars:50 }}</p>
+                        <small class="text-danger">
+                            <i class="fas fa-times-circle"></i> Rejetée le {{ claim.updated_at|date:"d/m/Y" }}
+                        </small>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item">
+                        <p class="mb-0 text-muted">Aucune réclamation rejetée</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Graphique en camembert (types de réclamations)
+    const typeCtx = document.getElementById('typeChart').getContext('2d');
+    new Chart(typeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ type_labels|safe }},
+            datasets: [{
+                data: {{ type_data|safe }},
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                    '#9966FF', '#FF9F40', '#8AC24A', '#607D8B'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 2. Graphique en courbe (évolution temporelle)
+    const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+    new Chart(evolutionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ dates|safe }},
+            datasets: [{
+                label: 'Nombre de réclamations',
+                data: {{ daily_counts|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+
+    // 3. NOUVELLE charte circulaire pour les statuts
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ status_labels|safe }},
+            datasets: [{
+                data: {{ status_data|safe }},
+                backgroundColor: [
+                    '#ffc107', // En attente
+                    '#28a745', // Acceptées
+                    '#dc3545'  // Rejetées
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+function updateClaimStatus(claimId, status) {
+    fetch(`/claims/update-status/${claimId}/${status}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert("Une erreur s'est produite");
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Erreur réseau");
+    });
+}
+</script>
+{% endblock %}

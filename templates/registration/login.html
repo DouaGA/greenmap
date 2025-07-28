@@ -1,0 +1,49 @@
+{% extends "base_auth.html" %}
+{% load static %}
+
+{% block title %}Connexion - TrulyClaims{% endblock %}
+
+{% block auth_content %}
+<div class="text-center mb-4">
+    <h3>Connexion</h3>
+</div>
+
+<form method="post" action="{% url 'login' %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    
+    {% if form.errors %}
+    <div class="alert alert-danger">
+        Identifiants incorrects. Veuillez réessayer.
+    </div>
+    {% endif %}
+    
+    <div class="mb-3">
+        <label for="id_username" class="form-label">Nom d'utilisateur</label>
+        <input type="text" name="username" id="id_username" 
+               class="form-control" required autofocus>
+    </div>
+    
+    <div class="mb-3">
+        <label for="id_password" class="form-label">Mot de passe</label>
+        <input type="password" name="password" id="id_password" 
+               class="form-control" required>
+    </div>
+    
+    <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-sign-in-alt"></i> Se connecter
+        </button>
+    </div>
+</form>
+
+<div class="mt-3 text-center">
+    <a href="{% url 'register' %}" class="text-decoration-none">
+        Créer un compte
+    </a>
+    <span class="mx-2">•</span>
+    <a href="#" class="text-decoration-none">
+        Mot de passe oublié ?
+    </a>
+</div>
+{% endblock %}

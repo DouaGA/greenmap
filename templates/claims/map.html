@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Carte Interactive des Réclamations{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .marker-icon {
+        background-color: #3388ff;
+        border-radius: 50%;
+        border: 3px solid white;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+    }
+    .pending {
+        background-color: #ffc107; /* Jaune */
+    }
+    .accepted {
+        background-color: #28a745; /* Vert */
+    }
+    .rejected {
+        background-color: #dc3545; /* Rouge */
+    }
+    .info-window {
+        min-width: 250px;
+    }
+    .filter-container {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Carte Interactive des Réclamations</h1>
+    </div>
+
+    <div class="filter-container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="status-filter">Statut</label>
+                    <select id="status-filter" class="form-control">
+                        <option value="all">Tous statuts</option>
+                        <option value="pending">En attente</option>
+                        <option value="accepted">Acceptées</option>
+                        <option value="rejected">Rejetées</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="type-filter">Type</label>
+                    <select id="type-filter" class="form-control">
+                        <option value="all">Tous types</option>
+                        {% for claim_type in claim_types %}
+                        <option value="{{ claim_type.id }}">{{ claim_type.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="date-filter">Date</label>
+                    <input type="date" id="date-filter" class="form-control">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisation de la carte
+    const map = L.map('map').setView([34.0, -7.0], 6); // Centré sur le Maroc par défaut
+    
+    // Couche OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // Dictionnaire des marqueurs
+    const markers = {};
+    
+    // Icônes personnalisées
+    function createCustomIcon(claim) {
+        const statusClass = claim.status === 'pending' ? 'pending' : 
+                          claim.status === 'accepted' ? 'accepted' : 'rejected';
+        
+        const iconHtml = `
+            <div class="marker-icon ${statusClass}">
+                ${claim.id}
+            </div>
+        `;
+        
+        return L.divIcon({
+            html: iconHtml,
+            className: 'custom-marker',
+            iconSize: [30, 30]
+        });
+    }
+
+    // Charger les réclamations
+    function loadClaims() {
+        const status = document.getElementById('status-filter').value;
+        const claimType = document.getElementById('type-filter').value;
+        const date = document.getElementById('date-filter').value;
+        
+        // Construction de l'URL avec les filtres
+        let url = '/api/claims/?';
+        if (status !== 'all') url += `status=${status}&`;
+        if (claimType !== 'all') url += `claim_type=${claimType}&`;
+        if (date) url += `date=${date}`;
+        
+        // Supprimer les marqueurs existants
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        markers = {};
+        
+        // Requête AJAX
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(claim => {
+                    const marker = L.marker(
+                        [claim.location_lat, claim.location_lng],
+                        { icon: createCustomIcon(claim) }
+                    ).addTo(map);
+                    
+                    // Contenu de la popup
+                    const popupContent = `
+                        <div class="info-window">
+                            <h5>${claim.title}</h5>
+                            <p><strong>Type:</strong> ${claim.claim_type.name}</p>
+                            <p><strong>Statut:</strong> ${claim.status_display}</p>
+                            <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
+                            <p>${claim.description.substring(0, 100)}${claim.description.length > 100 ? '...' : ''}</p>
+                            ${claim.status === 'pending' ? `
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="updateClaimStatus(${claim.id}, 'accepted')">
+                                    Accepter
+                                </button>
+                                <button class="btn btn-sm btn-danger" 
+                                        onclick="updateClaimStatus(${claim.id}, 'rejected')">
+                                    Rejeter
+                                </button>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                    markers[claim.id] = marker;
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+    }
+
+    // Mettre à jour le statut d'une réclamation
+    window.updateClaimStatus = function(claimId, status) {
+        fetch(`/claims/update-status/${claimId}/${status}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadClaims(); // Recharger les réclamations
+            } else {
+                alert("Erreur lors de la mise à jour");
+            }
+        })
+        .catch(error => console.error('Erreur:', error));
+    }
+
+    // Écouteurs d'événements pour les filtres
+    document.getElementById('status-filter').addEventListener('change', loadClaims);
+    document.getElementById('type-filter').addEventListener('change', loadClaims);
+    document.getElementById('date-filter').addEventListener('change', loadClaims);
+
+    // Chargement initial
+    loadClaims();
+});
+</script>
+{% endblock %}
