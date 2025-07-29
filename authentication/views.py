@@ -17,6 +17,7 @@ from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.contrib.auth.views import LoginView
+from django.views.decorators.csrf import csrf_protect
 
 class EmailValidationView(View):
     def post(self, request):
@@ -60,6 +61,8 @@ class RegistrationView(View):
             user.set_password(password)
             user.is_active = False
             user.save()
+            if not hasattr(user, 'userprofile'):
+                UserProfile.objects.create(user=user)
 
             current_site = get_current_site(request)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -112,34 +115,27 @@ class VerificationView(View):
 class LoginView(View):
     template_name = 'authentication/login.html'
     
+    @method_decorator(csrf_protect)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+    
     def get(self, request):
         if request.user.is_authenticated:
-            return redirect('claims_dashboard')
+            return redirect('dashboard')
         return render(request, self.template_name)
     
     def post(self, request):
         username = request.POST.get('username')
         password = request.POST.get('password')
-        next_url = request.POST.get('next') or 'claims_dashboard'
         
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
-            if user.is_active:
-                login(request, user)
-                
-                # Vérification des informations du profil avant redirection
-                if not hasattr(user, 'userprofile'):
-                    messages.warning(request, "Veuillez compléter votre profil")
-                    return redirect('edit_profile')
-                
-                return redirect(next_url)
-            else:
-                messages.error(request, "Votre compte est désactivé")
+            login(request, user)
+            return redirect('dashboard')
         else:
-            messages.error(request, "Identifiants incorrects")
-        
-        return render(request, self.template_name, {'next': next_url})
+            messages.error(request, "Invalid username or password")
+            return render(request, self.template_name)
 
 class LogoutView(View):
     @method_decorator(login_required)
