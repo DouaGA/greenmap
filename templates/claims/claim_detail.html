@@ -1,58 +1,119 @@
 {% extends 'base.html' %}
 
+{% block title %}Détails de la réclamation #{{ claim.id }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h2>Détails de la réclamation #{{ claim.id }}</h2>
+    <div class="card shadow">
+        <div class="card-header {% if claim.status == 'accepted' %}bg-success{% elif claim.status == 'rejected' %}bg-danger{% else %}bg-warning{% endif %} text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Réclamation #{{ claim.id }}
+                </h2>
+                <a href="{% url 'claims_dashboard' %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i> Retour
+                </a>
+            </div>
         </div>
         <div class="card-body">
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <h4>Informations de base</h4>
-                    <p><strong>Titre :</strong> {{ claim.title }}</p>
-                    <p><strong>Type :</strong> {{ claim.claim_type.name }}</p>
-                    <p><strong>Statut :</strong> 
-                        <span class="badge bg-{% if claim.status == 'accepted' %}success
-                                             {% elif claim.status == 'rejected' %}danger
-                                             {% else %}warning{% endif %}">
-                            {{ claim.get_status_display }}
-                        </span>
-                    </p>
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations de base</h4>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Titre :</strong> {{ claim.title }}</p>
+                            <p><strong>Type :</strong> <span class="badge bg-secondary">{{ claim.claim_type.name }}</span></p>
+                            <p><strong>Statut :</strong> 
+                                <span class="badge bg-{% if claim.status == 'accepted' %}success
+                                                     {% elif claim.status == 'rejected' %}danger
+                                                     {% else %}warning{% endif %}">
+                                    {{ claim.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-6">
-                    <h4>Dates</h4>
-                    <p><strong>Créée le :</strong> {{ claim.created_at|date:"d/m/Y H:i" }}</p>
-                    {% if claim.status != 'pending' %}
-                    <p><strong>Traitée le :</strong> {{ claim.updated_at|date:"d/m/Y H:i" }}</p>
-                    <p><strong>Temps de traitement :</strong> 
-                        {{ claim.updated_at|timesince:claim.created_at }}
-                    </p>
-                    {% endif %}
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dates</h4>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Créée le :</strong> {{ claim.created_at|date:"d/m/Y H:i" }}</p>
+                            {% if claim.status != 'pending' %}
+                            <p><strong>Traitée le :</strong> {{ claim.updated_at|date:"d/m/Y H:i" }}</p>
+                            <p><strong>Temps de traitement :</strong> 
+                                {{ claim.updated_at|timesince:claim.created_at }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="mb-4">
-                <h4>Description</h4>
-                <p>{{ claim.description }}</p>
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0"><i class="fas fa-align-left me-2"></i>Description</h4>
+                </div>
+                <div class="card-body">
+                    <div class="p-3 bg-light rounded">
+                        {{ claim.description|linebreaks }}
+                    </div>
+                </div>
             </div>
             
             {% if claim.status == 'pending' %}
-            <div class="d-flex gap-3">
-                <!-- Formulaire POST -->
-                <form method="post" action="{% url 'update_claim_status' claim.id 'accepted' %}">
-                  {% csrf_token %}
-                  <button type="submit">Accepter</button>
-                </form>
-                <form method="post" action="{% url 'update_claim_status' claim.id 'rejected' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger btn-lg">
-                        <i class="fas fa-times-circle me-2"></i>Rejeter
-                    </button>
-                </form>
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0"><i class="fas fa-cogs me-2"></i>Actions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-center gap-3">
+                        <form method="post" action="{% url 'update_claim_status' claim.id 'accepted' %}" class="mb-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg px-4">
+                                <i class="fas fa-check-circle me-2"></i>Accepter
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'update_claim_status' claim.id 'rejected' %}" class="mb-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-lg px-4">
+                                <i class="fas fa-times-circle me-2"></i>Rejeter
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Fonction pour confirmer avant de rejeter
+document.addEventListener('DOMContentLoaded', function() {
+    const rejectForm = document.querySelector('form[action*="rejected"]');
+    if (rejectForm) {
+        rejectForm.addEventListener('submit', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir rejeter cette réclamation ?')) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    // Pour le bouton Accepter aussi si besoin
+    const acceptForm = document.querySelector('form[action*="accepted"]');
+    if (acceptForm) {
+        acceptForm.addEventListener('submit', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir accepter cette réclamation ?')) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

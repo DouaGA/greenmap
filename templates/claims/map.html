@@ -140,7 +140,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialisation de la carte
-    const map = L.map('map').setView([39.5, -3.0], 6); // Centré sur l'Espagne
+    const map = L.map('map').setView([36.7525, 3.0420], 12); // Centré sur Alger
     
     // Couche OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -174,11 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
             'other': '#800080'
         };
         
-        const color = typeColors[claim.waste_type] || '#3388ff';
+        const color = typeColors[claim.claim_type?.name?.toLowerCase()] || '#3388ff';
         
         const iconHtml = `
             <div class="marker-icon ${statusClass}" style="background-color: ${color}">
-                ${claim.waste_type ? claim.waste_type.charAt(0).toUpperCase() : claim.id}
+                ${claim.claim_type?.name?.charAt(0).toUpperCase() || claim.id}
             </div>
         `;
         
@@ -247,13 +247,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Charger les signalements avec filtres
     function loadClaims() {
         const status = document.getElementById('status-filter').value;
-        const wasteType = document.getElementById('type-filter').value;
+        const claimType = document.getElementById('type-filter').value;
         const date = document.getElementById('date-filter').value;
         
         // Construction de l'URL avec les filtres
-        let url = '/api/claims/?';
+        let url = '{% url "api_claims" %}?';
         if (status !== 'all') url += `status=${status}&`;
-        if (wasteType !== 'all') url += `waste_type=${wasteType}&`;
+        if (claimType !== 'all') url += `claim_type=${claimType}&`;
         if (date) url += `date=${date}`;
         
         // Supprimer les marqueurs existants
@@ -270,102 +270,135 @@ document.addEventListener('DOMContentLoaded', function() {
         }).addTo(map);
         
         // Requête AJAX
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                map.removeLayer(loader); // Retirer le loader
-                
-                if (data.length === 0) {
-                    // Aucun résultat trouvé
-                    L.marker(map.getCenter(), {
-                        icon: L.divIcon({
-                            html: '<div class="alert alert-info">Aucun signalement trouvé</div>',
-                            className: 'no-results-marker',
-                            iconSize: [200, 50]
-                        })
-                    }).addTo(map);
-                    return;
-                }
-                
-                // Ajouter tous les marqueurs
-                data.forEach(claim => {
-                    const marker = L.marker(
-                        [claim.location_lat, claim.location_lng],
-                        { icon: createCustomIcon(claim) }
-                    ).addTo(map);
-                    
-                    // Contenu de la popup
-                    const popupContent = `
-                        <div class="info-window">
-                            <h5>${claim.title}</h5>
-                            <p><strong>Type:</strong> ${claim.waste_type_display || 'Non spécifié'}</p>
-                            <p><strong>Statut:</strong> ${claim.status_display}</p>
-                            <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
-                            <p>${claim.description.substring(0, 100)}${claim.description.length > 100 ? '...' : ''}</p>
-                            ${claim.image_url ? `<img src="${claim.image_url}" style="max-width: 100%; max-height: 150px; margin-top: 10px;">` : ''}
-                            ${claim.status === 'pending' ? `
-                            <div class="mt-2">
-                                <button class="btn btn-sm btn-success" 
-                                        onclick="updateClaimStatus(${claim.id}, 'accepted')">
-                                    Accepter
-                                </button>
-                                <button class="btn btn-sm btn-danger" 
-                                        onclick="updateClaimStatus(${claim.id}, 'rejected')">
-                                    Rejeter
-                                </button>
-                            </div>
-                            ` : ''}
-                            <div class="mt-2">
-                                <a href="/claims/detail/${claim.id}/" class="btn btn-sm btn-info">
-                                    Voir détails
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                    
-                    marker.bindPopup(popupContent);
-                    markers[claim.id] = marker;
-                });
-                
-                // Ajuster la vue de la carte pour afficher tous les marqueurs
-                if (data.length > 0) {
-                    const markerGroup = new L.featureGroup(Object.values(markers));
-                    map.fitBounds(markerGroup.getBounds());
-                }
-            })
-            .catch(error => {
-                console.error('Erreur:', error);
-                map.removeLayer(loader);
-                
-                // Afficher un message d'erreur
-                L.marker(map.getCenter(), {
-                    icon: L.divIcon({
-                        html: '<div class="alert alert-danger">Erreur lors du chargement</div>',
-                        className: 'error-marker',
-                        iconSize: [200, 50]
-                    })
-                }).addTo(map);
-            });
+        fetch(url, {
+    headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Accept': 'application/json',
+    },
+    credentials: 'same-origin'
+})
+.then(response => {
+    // Vérifiez d'abord le content-type
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+        return response.text().then(text => {
+            throw new Error(`Réponse non-JSON: ${text.substring(0, 100)}`);
+        });
     }
+    return response.json();
+})
+.then(data => {
+    // Traitement des données...
+})
+.catch(error => {
+    console.error('Erreur:', error);
+    // Affichez un message d'erreur plus clair à l'utilisateur
+    L.marker(map.getCenter(), {
+        icon: L.divIcon({
+            html: `<div class="alert alert-danger">
+                     Erreur lors du chargement: ${error.message}
+                   </div>`,
+            className: 'error-marker',
+            iconSize: [200, 50]
+        })
+    }).addTo(map);
+});
+            
+            // Ajouter tous les marqueurs
+            data.forEach(claim => {
+                const marker = L.marker(
+                    [claim.location_lat, claim.location_lng],
+                    { icon: createCustomIcon(claim) }
+                ).addTo(map);
+                
+                // Contenu de la popup
+                const popupContent = `
+                    <div class="info-window">
+                        <h5>${claim.title}</h5>
+                        <p><strong>Type:</strong> ${claim.claim_type?.name || 'Non spécifié'}</p>
+                        <p><strong>Statut:</strong> ${claim.status_display || claim.status}</p>
+                        <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
+                        <p>${claim.description?.substring(0, 100) || ''}${claim.description?.length > 100 ? '...' : ''}</p>
+                        ${claim.image_url ? `<img src="${claim.image_url}" style="max-width: 100%; max-height: 150px; margin-top: 10px;">` : ''}
+                        ${claim.status === 'pending' ? `
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-success" 
+                                    onclick="updateClaimStatus(${claim.id}, 'accepted')">
+                                Accepter
+                            </button>
+                            <button class="btn btn-sm btn-danger" 
+                                    onclick="updateClaimStatus(${claim.id}, 'rejected')">
+                                Rejeter
+                            </button>
+                        </div>
+                        ` : ''}
+                        <div class="mt-2">
+                            <a href="{% url 'claim_detail' 0 %}".replace('0', ${claim.id}) class="btn btn-sm btn-info">
+                                Voir détails
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                markers[claim.id] = marker;
+            });
+            
+            // Ajuster la vue de la carte pour afficher tous les marqueurs
+            if (data.length > 0) {
+                const markerGroup = new L.featureGroup(Object.values(markers));
+                map.fitBounds(markerGroup.getBounds());
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            map.removeLayer(loader);
+            
+            // Afficher un message d'erreur
+            L.marker(map.getCenter(), {
+                icon: L.divIcon({
+                    html: '<div class="alert alert-danger">Erreur lors du chargement</div>',
+                    className: 'error-marker',
+                    iconSize: [200, 50]
+                })
+            }).addTo(map);
+        });
 
     // Mettre à jour le statut d'un signalement
     window.updateClaimStatus = function(claimId, status) {
-        fetch(`/claims/update-status/${claimId}/${status}/`, {
+        if (!confirm(`Voulez-vous vraiment ${status === 'accepted' ? 'accepter' : 'rejeter'} cette réclamation ?`)) {
+            return;
+        }
+        
+        fetch(`{% url 'update_claim_status' 0 'status' %}`
+            .replace('0', claimId)
+            .replace('status', status), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: JSON.stringify({status: status})
+                  })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Erreur serveur');
+                });
             }
+            return response.json();
         })
-        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                loadClaims(); // Recharger les signalements
+                loadClaims(); // Recharger les marqueurs
             } else {
-                alert("Erreur lors de la mise à jour");
+                alert(data.message || "Erreur lors de la mise à jour");
             }
         })
-        .catch(error => console.error('Erreur:', error));
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Erreur: " + error.message);
+        });
     }
 
     // Réinitialiser les filtres
@@ -384,14 +417,5 @@ document.addEventListener('DOMContentLoaded', function() {
     loadClaims();
     addLegend();
 });
-fetch("{% url 'update_claim_status' 0 'status_placeholder' %}"
-    .replace('0', claimId)
-    .replace('status_placeholder', status), {
-    method: 'POST',
-    headers: {
-        'X-CSRFToken': '{{ csrf_token }}',
-        'Content-Type': 'application/json',
-    },
-})
 </script>
 {% endblock %}

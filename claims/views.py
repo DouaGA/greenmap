@@ -2,7 +2,6 @@ from django.shortcuts import render,redirect
 from django.contrib.auth.decorators import login_required
 from .models import Claim, ClaimType
 import json
-from django.http import JsonResponse
 from datetime import datetime, timedelta
 from django.views.decorators.http import require_GET
 from django.db.models import Count, Q
@@ -25,6 +24,7 @@ from django.http import HttpResponse
 from openpyxl import Workbook
 from io import BytesIO
 from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
 
 
 def export_claims(request):
@@ -208,6 +208,7 @@ def claim_detail(request, claim_id):
 
 @login_required
 def api_claim_details(request, claim_id):
+    
     try:
         claim = Claim.objects.get(id=claim_id)
         data = {
@@ -267,23 +268,34 @@ def api_claims(request):
     
     return JsonResponse(data, safe=False)
 
-@csrf_exempt
 @require_POST
-@login_required
+@csrf_exempt  # Temporarily for debugging, remove in production
 def update_claim_status(request, claim_id, status):
     try:
         claim = Claim.objects.get(id=claim_id)
         if status in ['accepted', 'rejected']:
             claim.status = status
+            claim.updated_at = timezone.now()
             claim.save()
             return JsonResponse({
                 'success': True,
-                'new_status': status,
-                'status_display': claim.get_status_display()
+                'message': f'Statut mis à jour vers {status}'
             })
-        return JsonResponse({'success': False, 'error': 'Statut invalide'}, status=400)
+        return JsonResponse({
+            'success': False,
+            'message': 'Statut invalide'
+        }, status=400)
     except Claim.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Réclamation non trouvée'}, status=404)
+        return JsonResponse({
+            'success': False,
+            'message': 'Réclamation introuvable'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+    
 @login_required
 def agent_profile(request):
     # Créer le profil s'il n'existe pas

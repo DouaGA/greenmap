@@ -778,24 +778,60 @@ function updateClaimStatus(claimId, status) {
         return;
     }
     
-    fetch(`/claims/update-status/${claimId}/${status}/`, {
+    fetch(`/api/claims/${claimId}/update-status/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            'new_status': status
+        })
     })
     .then(response => {
-        if (response.ok) {
-            window.location.reload();
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.message || 'Erreur serveur') });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Mise à jour dynamique sans rechargement
+            const item = document.querySelector(`.claim-item[data-claim-id="${claimId}"]`);
+            if (item) {
+                // Mise à jour des classes CSS
+                item.classList.remove('pending-item');
+                item.classList.add(`${status}-item`);
+                
+                // Mise à jour du texte de statut
+                const statusText = item.querySelector('.status-text');
+                if (statusText) {
+                    statusText.innerHTML = `
+                        <i class="fas fa-${status === 'accepted' ? 'check' : 'times'}-circle"></i>
+                        ${status === 'accepted' ? 'Acceptée' : 'Rejetée'} le ${new Date().toLocaleDateString()}
+                    `;
+                }
+                
+                // Suppression des boutons d'action
+                const actions = item.querySelector('.claim-actions');
+                if (actions) actions.remove();
+                
+                // Ajout du bouton de visualisation
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn btn-outline-secondary btn-sm';
+                viewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                viewBtn.onclick = () => showClaimDetails(claimId);
+                item.querySelector('.d-flex.justify-content-between.align-items-center').appendChild(viewBtn);
+            }
         } else {
-            throw new Error('Erreur serveur');
+            alert(data.message || "Erreur lors de la mise à jour");
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert("Une erreur s'est produite lors de la mise à jour");
+        alert("Erreur : " + error.message);
     });
 }
+
 </script>
 {% endblock %}
