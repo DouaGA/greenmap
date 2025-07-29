@@ -384,5 +384,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadClaims();
     addLegend();
 });
+fetch("{% url 'update_claim_status' 0 'status_placeholder' %}"
+    .replace('0', claimId)
+    .replace('status_placeholder', status), {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json',
+    },
+})
 </script>
 {% endblock %}

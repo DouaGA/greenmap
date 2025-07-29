@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2>Détails de la réclamation #{{ claim.id }}</h2>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h4>Informations de base</h4>
+                    <p><strong>Titre :</strong> {{ claim.title }}</p>
+                    <p><strong>Type :</strong> {{ claim.claim_type.name }}</p>
+                    <p><strong>Statut :</strong> 
+                        <span class="badge bg-{% if claim.status == 'accepted' %}success
+                                             {% elif claim.status == 'rejected' %}danger
+                                             {% else %}warning{% endif %}">
+                            {{ claim.get_status_display }}
+                        </span>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h4>Dates</h4>
+                    <p><strong>Créée le :</strong> {{ claim.created_at|date:"d/m/Y H:i" }}</p>
+                    {% if claim.status != 'pending' %}
+                    <p><strong>Traitée le :</strong> {{ claim.updated_at|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Temps de traitement :</strong> 
+                        {{ claim.updated_at|timesince:claim.created_at }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h4>Description</h4>
+                <p>{{ claim.description }}</p>
+            </div>
+            
+            {% if claim.status == 'pending' %}
+            <div class="d-flex gap-3">
+                <!-- Formulaire POST -->
+                <form method="post" action="{% url 'update_claim_status' claim.id 'accepted' %}">
+                  {% csrf_token %}
+                  <button type="submit">Accepter</button>
+                </form>
+                <form method="post" action="{% url 'update_claim_status' claim.id 'rejected' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="fas fa-times-circle me-2"></i>Rejeter
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

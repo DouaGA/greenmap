@@ -81,3 +81,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
     if hasattr(instance, 'profile'):
         instance.profile.save()
+        
+def get_absolute_url(self):
+    from django.urls import reverse
+    return reverse('claim_detail', kwargs={'claim_id': self.id})

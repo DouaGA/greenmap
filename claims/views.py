@@ -24,6 +24,9 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from openpyxl import Workbook
 from io import BytesIO
+from django.shortcuts import get_object_or_404
+
+
 def export_claims(request):
     if request.method == 'POST':
         format_type = request.POST.get('format')
@@ -125,6 +128,7 @@ def claim_map(request):
 @login_required
 def claim_stats(request):
     # Statistiques globales
+    new_reclamation = Claim.objects.filter(status='pending').order_by('created_at').first()
     total_claims = Claim.objects.count()
     pending = Claim.objects.filter(status='pending').count()
     accepted = Claim.objects.filter(status='accepted').count()
@@ -185,10 +189,40 @@ def claim_stats(request):
         'claims_by_type': claims_by_type,
         'dates': dates,
         'daily_counts': daily_counts,
+        'new_reclamation': new_reclamation,
+        'total_claims': total_claims,
+        'reclamations': Claim.objects.all().order_by('-created_at')[:10],
         'avg_processing_time': avg_processing_time,
     }
     return render(request, 'claims/stats.html', context)
 
+@login_required
+def claim_detail(request, claim_id):
+    claim = get_object_or_404(Claim, id=claim_id)
+    context = {
+        'claim': claim,
+        'page_title': f'Détails de la réclamation #{claim.id}'
+    }
+    return render(request, 'claims/claim_detail.html', context)
+
+
+@login_required
+def api_claim_details(request, claim_id):
+    try:
+        claim = Claim.objects.get(id=claim_id)
+        data = {
+            'success': True,
+            'id': claim.id,
+            'title': claim.title,
+            'type': claim.claim_type.name if claim.claim_type else 'Non spécifié',
+            'status': claim.get_status_display(),
+            'date': claim.created_at.strftime("%Y-%m-%d %H:%M"),
+            'description': claim.description,
+            'location': f"{claim.location_lat}, {claim.location_lng}" if claim.location_lat else None,
+        }
+        return JsonResponse(data)
+    except Claim.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Réclamation non trouvée'}, status=404)
 @require_GET
 def api_claims(request):
     # Récupération des paramètres de filtre

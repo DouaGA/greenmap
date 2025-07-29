@@ -32,29 +32,53 @@
                     </div>
                 </div>
                 
+                <!-- Remplacer la section des actions par -->
                 <div class="col-md-4 d-flex align-items-center">
                     <div class="d-grid gap-3 w-100">
-                        <button type="button" id="approveBtn" class="btn btn-success btn-lg py-3">
-                            <i class="fas fa-check-circle me-2"></i>Approuver
-                        </button>
-                        <button type="button" id="rejectBtn" class="btn btn-danger btn-lg py-3">
-                            <i class="fas fa-trash-alt me-2"></i>Supprimer
-                        </button>
+                        <form method="post" action="{% url 'update_claim_status' new_reclamation.id 'accepted' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg py-3">
+                                <i class="fas fa-check-circle me-2"></i>Approuver
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'update_claim_status' new_reclamation.id 'rejected' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-lg py-3">
+                                <i class="fas fa-times-circle me-2"></i>Rejeter
+                            </button>
+                        </form>
                     </div>
                 </div>
-            </div>
-            {% else %}
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i>Toutes les réclamations ont été traitées !
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Section des statistiques -->
+                            </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>Toutes les réclamations ont été traitées !
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+    <!-- Section des statistiques et historique -->
     <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">Statistiques de Traitement</h5>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Historique des Réclamations</h5>
+            <div>
+                <div class="input-group">
+                    <select id="statusFilter" class="form-select form-select-sm">
+                        <option value="all">Tous</option>
+                        <option value="accepted">Acceptées</option>
+                        <option value="rejected">Refusées</option>
+                        <option value="pending">En attente</option>
+                    </select>
+                    <button id="filterBtn" class="btn btn-sm btn-outline-primary" type="button">
+                        <i class="fas fa-filter"></i> Filtrer
+                    </button>
+                    <button id="resetFilterBtn" class="btn btn-sm btn-outline-secondary" type="button">
+                        <i class="fas fa-undo"></i> Réinitialiser
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             {% if avg_processing_time %}
@@ -63,32 +87,64 @@
             </div>
             {% endif %}
             
-            <table class="table table-sm table-hover">
-                <thead>
-                    <tr>
-                        <th>Statut</th>
-                        <th>Nombre</th>
-                        <th>Pourcentage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>En attente</td>
-                        <td>{{ pending }}</td>
-                        <td>{{ pending_percentage|floatformat:2 }}%</td>
-                    </tr>
-                    <tr>
-                        <td>Acceptées</td>
-                        <td>{{ accepted }}</td>
-                        <td>{{ accepted_percentage|floatformat:2 }}%</td>
-                    </tr>
-                    <tr>
-                        <td>Rejetées</td>
-                        <td>{{ rejected }}</td>
-                        <td>{{ rejected_percentage|floatformat:2 }}%</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reclamation in reclamations %}
+                        <tr class="status-{{ reclamation.status }}">
+                            <td>{{ reclamation.id }}</td>
+                            <td>{{ reclamation.type }}</td>
+                            <td>{{ reclamation.date }}</td>
+                            <td>
+                                {% if reclamation.status == 'accepted' %}
+                                    <span class="badge bg-success">Acceptée</span>
+                                {% elif reclamation.status == 'rejected' %}
+                                    <span class="badge bg-danger">Refusée</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">En attente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info view-details" data-id="{{ reclamation.id }}">
+                                    <i class="fas fa-eye"></i> Détails
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">Aucune réclamation trouvée</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour les détails -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de la réclamation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                Chargement en cours...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
         </div>
     </div>
 </div>
@@ -113,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Gestion des boutons
+    // Gestion des boutons d'action
     const approveBtn = document.getElementById('approveBtn');
     const rejectBtn = document.getElementById('rejectBtn');
     const reclamationId = {{ new_reclamation.id|default:'null' }};
@@ -130,8 +186,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 success: `Réclamation #${reclamationId} approuvée avec succès !`
             },
             'reject': {
-                message: `Attention ! La réclamation #${reclamationId} sera définitivement supprimée. Continuer ?`,
-                success: `Réclamation #${reclamationId} supprimée avec succès !`
+                message: `Attention ! La réclamation #${reclamationId} sera définitivement refusée. Continuer ?`,
+                success: `Réclamation #${reclamationId} refusée avec succès !`
             }
         };
         
@@ -178,6 +234,68 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rejectBtn) {
         rejectBtn.addEventListener('click', () => handleAction('reject'));
     }
+    
+    // Filtrage du tableau
+    const filterBtn = document.getElementById('filterBtn');
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    filterBtn.addEventListener('click', function() {
+        const status = statusFilter.value;
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            if (status === 'all') {
+                row.style.display = '';
+            } else {
+                if (row.classList.contains(`status-${status}`)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    });
+    
+    resetFilterBtn.addEventListener('click', function() {
+        statusFilter.value = 'all';
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => row.style.display = '');
+    });
+    
+    // Gestion des détails
+    const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    const detailsContent = document.getElementById('detailsContent');
+    
+    document.querySelectorAll('.view-details').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            
+            fetch(`/api/reclamations/${id}/details/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        detailsContent.innerHTML = `
+                            <p><strong>ID:</strong> ${data.id}</p>
+                            <p><strong>Type:</strong> ${data.type}</p>
+                            <p><strong>Date:</strong> ${data.date}</p>
+                            <p><strong>Statut:</strong> ${data.status}</p>
+                            <p><strong>Description:</strong> ${data.description}</p>
+                            ${data.location ? `<p><strong>Localisation:</strong> ${data.location}</p>` : ''}
+                        `;
+                        detailsModal.show();
+                    } else {
+                        detailsContent.innerHTML = `<div class="alert alert-danger">${data.message || 'Erreur lors du chargement des détails'}</div>`;
+                        detailsModal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    detailsContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des détails</div>';
+                    detailsModal.show();
+                });
+        });
+    });
     
     // Initialiser la carte
     initMap();

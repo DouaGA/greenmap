@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% block title %}Dashboard des Réclamations{% endblock %}
 
 {% block extra_css %}
@@ -165,6 +164,35 @@
     
     .text-rejected {
         color: #dc3545 !important;
+    }
+
+    /* Styles ajoutés pour les boutons */
+    .btn-outline-primary, .btn-outline-secondary, .btn-outline-success {
+        transition: all 0.3s;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-outline-success:hover {
+        background-color: #198754;
+        color: white;
+    }
+
+    .btn-action {
+        transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .btn-action:hover {
+        transform: scale(1.1);
+        opacity: 0.9;
     }
 </style>
 {% endblock %}
@@ -439,29 +467,41 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="exportModalLabel">Exporter les données</h5>
+                <h5 class="modal-title" id="exportModalLabel"><i class="fas fa-file-export me-2"></i>Exporter les données</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="exportForm" method="post" action="{% url 'export_claims' %}">
-                    {% csrf_token %}
+                <form id="exportForm" method="get" action="{% url 'export_claims' %}">
                     <div class="mb-3">
                         <label for="exportFormat" class="form-label">Format</label>
-                        <select class="form-select" id="exportFormat" name="format" required>
+                        <select class="form-select" id="exportFormat" name="format">
                             <option value="csv">CSV</option>
-                            <option value="excel">Excel</option>
-                            <option value="pdf">PDF</option>
+                            <option value="xlsx">Excel</option>
+                            <option value="json">JSON</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="exportRange" class="form-label">Période</label>
-                        <select class="form-select" id="exportRange" name="period" required>
+                        <select class="form-select" id="exportRange" name="range">
                             <option value="all">Toutes les données</option>
                             <option value="today">Aujourd'hui</option>
                             <option value="week">Cette semaine</option>
                             <option value="month">Ce mois</option>
                             <option value="year">Cette année</option>
+                            <option value="custom">Période personnalisée</option>
                         </select>
+                    </div>
+                    <div id="customDateRange" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">Date de début</label>
+                                <input type="date" class="form-control" id="startDate" name="start_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">Date de fin</label>
+                                <input type="date" class="form-control" id="endDate" name="end_date">
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -479,6 +519,32 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la sélection de période personnalisée
+    const exportRange = document.getElementById('exportRange');
+    const customDateRange = document.getElementById('customDateRange');
+    
+    if (exportRange && customDateRange) {
+        exportRange.addEventListener('change', function() {
+            customDateRange.style.display = this.value === 'custom' ? 'block' : 'none';
+        });
+    }
+
+    // Gestion de la période
+    document.querySelectorAll('.dropdown-item[href^="?period="]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const period = this.getAttribute('href').split('=')[1];
+            window.location.search = `?period=${period}`;
+        });
+    });
+
+    // Vérification des données
+    const hasData = {{ has_data|yesno:"true,false" }};
+    if (!hasData) {
+        console.log('Aucune donnée disponible pour les graphiques');
+        return;
+    }
+
     // Couleurs cohérentes pour tous les graphiques
     const chartColors = {
         pending: '#ffc107',
@@ -496,8 +562,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Graphique par type (Radar)
-    const typeCtx = document.getElementById('typeChart').getContext('2d');
-    if ({{ type_data|safe }}.some(item => item > 0)) {
+    const typeCtx = document.getElementById('typeChart');
+    if (typeCtx && {{ type_data|safe }}.some(item => item > 0)) {
         hidePlaceholder('typeChart');
         
         new Chart(typeCtx, {
@@ -507,10 +573,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Nombre de réclamations',
                     data: {{ type_data|safe }},
-                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    borderColor: '#007bff',
                     borderWidth: 2,
-                    pointBackgroundColor: '#dc3545',
+                    pointBackgroundColor: '#007bff',
                     pointBorderColor: '#fff',
                     pointHoverRadius: 5
                 }]
@@ -561,8 +627,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Graphique par statut (Doughnut)
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    if ({{ status_data|safe }}.some(item => item > 0)) {
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx && {{ status_data|safe }}.some(item => item > 0)) {
         hidePlaceholder('statusChart');
         
         new Chart(statusCtx, {
@@ -627,8 +693,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Graphique d'évolution (Ligne)
-    const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
-    if ({{ daily_counts|safe }}.some(item => item > 0)) {
+    const evolutionCtx = document.getElementById('evolutionChart');
+    if (evolutionCtx && {{ daily_counts|safe }}.some(item => item > 0)) {
         hidePlaceholder('evolutionChart');
         
         new Chart(evolutionCtx, {
@@ -701,8 +767,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Fonction pour mettre à jour le statut d'une réclamation
+// Fonction pour afficher les détails d'une réclamation
+function showClaimDetails(claimId) {
+    window.location.href = `/claims/detail/${claimId}/`;
+}
+
+// Fonction pour mettre à jour le statut
 function updateClaimStatus(claimId, status) {
+    if (!confirm(`Voulez-vous vraiment ${status === 'accepted' ? 'accepter' : 'rejeter'} cette réclamation ?`)) {
+        return;
+    }
+    
     fetch(`/claims/update-status/${claimId}/${status}/`, {
         method: 'POST',
         headers: {
@@ -714,18 +789,13 @@ function updateClaimStatus(claimId, status) {
         if (response.ok) {
             window.location.reload();
         } else {
-            alert("Une erreur s'est produite lors de la mise à jour");
+            throw new Error('Erreur serveur');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert("Erreur réseau");
+        alert("Une erreur s'est produite lors de la mise à jour");
     });
-}
-
-// Fonction pour afficher les détails d'une réclamation
-function showClaimDetails(claimId) {
-    window.location.href = `/claims/${claimId}/`;
 }
 </script>
 {% endblock %}
