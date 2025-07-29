@@ -110,35 +110,36 @@ class VerificationView(View):
             return redirect('login')
 
 class LoginView(View):
-    template_name = 'authentication/login.html'  # Chemin vers votre template personnalisé
-
+    template_name = 'authentication/login.html'
+    
     def get(self, request):
         if request.user.is_authenticated:
             return redirect('claims_dashboard')
-        return render(request, 'authentication/login.html')
-
+        return render(request, self.template_name)
+    
     def post(self, request):
         username = request.POST.get('username')
         password = request.POST.get('password')
-        next_url = request.POST.get('next') or request.GET.get('next') or 'claims_dashboard'
-
-        if not username or not password:
-            messages.error(request, 'Veuillez remplir tous les champs')
-            return render(request, 'authentication/login.html', {'next': next_url})
-
-        user = auth.authenticate(username=username, password=password)
-
-        if not user:
-            messages.error(request, 'Identifiants incorrects')
-            return render(request, 'authentication/login.html', {'next': next_url})
-
-        if not user.is_active:
-            messages.error(request, 'Compte non activé. Veuillez vérifier votre email.')
-            return render(request, 'authentication/login.html', {'next': next_url})
-
-        auth.login(request, user)
-        messages.success(request, f'Bienvenue, {user.username}')
-        return redirect(next_url)
+        next_url = request.POST.get('next') or 'claims_dashboard'
+        
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            if user.is_active:
+                login(request, user)
+                
+                # Vérification des informations du profil avant redirection
+                if not hasattr(user, 'userprofile'):
+                    messages.warning(request, "Veuillez compléter votre profil")
+                    return redirect('edit_profile')
+                
+                return redirect(next_url)
+            else:
+                messages.error(request, "Votre compte est désactivé")
+        else:
+            messages.error(request, "Identifiants incorrects")
+        
+        return render(request, self.template_name, {'next': next_url})
 
 class LogoutView(View):
     @method_decorator(login_required)
@@ -150,3 +151,7 @@ class LogoutView(View):
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
+from django.shortcuts import redirect
+
+def authentication_redirect(request):
+    return redirect('login')

@@ -1,9 +1,130 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    /* Styles personnalisés */
+    .card {
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #3a7bd5;
+        box-shadow: 0 0 0 0.25rem rgba(58, 123, 213, 0.25);
+    }
+    
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .rounded-circle {
+        transition: transform 0.3s ease;
+        border: 3px solid #fff;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .rounded-circle:hover {
+        transform: scale(1.05);
+    }
+    
+    .btn-outline-secondary {
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+    
+    .btn-primary {
+        border-radius: 10px;
+        padding: 10px 25px;
+        background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+        border: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(58, 123, 213, 0.4);
+    }
+    
+    .border-bottom {
+        border-color: #e0e0e0 !important;
+    }
+    
+    .text-center {
+        position: relative;
+    }
+    
+    .text-center:hover .rounded-circle {
+        filter: brightness(1.05);
+    }
+    
+    /* Animation pour les champs du formulaire */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .mb-3 {
+        animation: fadeIn 0.5s ease forwards;
+    }
+    
+    /* Délai d'animation pour chaque champ */
+    .mb-3:nth-child(1) { animation-delay: 0.1s; }
+    .mb-3:nth-child(2) { animation-delay: 0.2s; }
+    .mb-3:nth-child(3) { animation-delay: 0.3s; }
+    .mb-3:nth-child(4) { animation-delay: 0.4s; }
+    .mb-3:nth-child(5) { animation-delay: 0.5s; }
+    
+    /* Style pour le bouton de fichier */
+    input[type="file"] {
+        opacity: 0;
+        width: 0.1px;
+        height: 0.1px;
+        position: absolute;
+    }
+    
+    .file-input-label {
+        display: block;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 1px dashed #ced4da;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .file-input-label:hover {
+        background: #e9ecef;
+        border-color: #3a7bd5;
+    }
+</style>
+
 <div class="container mt-4">
     <div class="card shadow">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header text-white">
             <h3 class="mb-0"><i class="fas fa-user-edit me-2"></i>Modifier le Profil</h3>
         </div>
         <div class="card-body">
@@ -14,56 +135,65 @@
                     <!-- Colonne gauche -->
                     <div class="col-md-6">
                         <!-- Informations de base -->
-                        <h5 class="mb-3 border-bottom pb-2">Informations Personnelles</h5>
+                        <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-id-card me-2"></i>Informations Personnelles</h5>
                         
                         <div class="mb-3">
-                            <label class="form-label">Prénom</label>
+                            <label class="form-label fw-bold">Prénom</label>
                             <input type="text" class="form-control" name="first_name" 
-                                   value="{{ form.first_name.value|default:'' }}">
+                                   value="{{ form.first_name.value|default:'' }}" placeholder="Votre prénom">
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Nom</label>
+                            <label class="form-label fw-bold">Nom</label>
                             <input type="text" class="form-control" name="last_name" 
-                                   value="{{ form.last_name.value|default:'' }}">
+                                   value="{{ form.last_name.value|default:'' }}" placeholder="Votre nom">
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Email</label>
+                            <label class="form-label fw-bold">Email</label>
                             <input type="email" class="form-control" name="email" 
-                                   value="{{ form.email.value|default:'' }}">
+                                   value="{{ form.email.value|default:'' }}" placeholder="exemple@email.com">
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Téléphone</label>
+                            <label class="form-label fw-bold">Téléphone</label>
                             <input type="text" class="form-control" name="phone" 
-                                   value="{{ form.phone.value|default:'' }}">
+                                   value="{{ form.phone.value|default:'' }}" placeholder="Votre numéro de téléphone">
                         </div>
                     </div>
                     
                     <!-- Colonne droite -->
                     <div class="col-md-6">
                         <!-- Photo de profil -->
-                        <h5 class="mb-3 border-bottom pb-2">Photo de Profil</h5>
+                        <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-camera me-2"></i>Photo de Profil</h5>
                         
                         <div class="text-center mb-3">
                             {% if form.instance.image %}
                             <img src="{{ form.instance.image.url }}" class="rounded-circle mb-3" 
-                                 width="150" height="150" style="object-fit: cover;">
+                                 width="150" height="150" style="object-fit: cover;" id="profile-image">
+                            {% else %}
+                            <div class="rounded-circle mb-3 bg-light d-flex align-items-center justify-content-center" 
+                                 style="width:150px; height:150px; margin: 0 auto;">
+                                <i class="fas fa-user text-muted" style="font-size: 60px;"></i>
+                            </div>
                             {% endif %}
-                            <input type="file" class="form-control" name="image" accept="image/*">
+                            
+                            <label for="id_image" class="file-input-label">
+                                <i class="fas fa-upload me-2"></i>Choisir une image
+                            </label>
+                            <input type="file" id="id_image" name="image" accept="image/*" class="d-none">
                         </div>
                         
                         <!-- Autres informations -->
-                        <h5 class="mb-3 border-bottom pb-2">Informations Supplémentaires</h5>
+                        <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-info-circle me-2"></i>Informations Supplémentaires</h5>
                         
                         <div class="mb-3">
-                            <label class="form-label">Adresse</label>
-                            <textarea class="form-control" name="address" rows="2">{{ form.address.value|default:'' }}</textarea>
+                            <label class="form-label fw-bold">Adresse</label>
+                            <textarea class="form-control" name="address" rows="2" placeholder="Votre adresse complète">{{ form.address.value|default:'' }}</textarea>
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Municipalité</label>
+                            <label class="form-label fw-bold">Municipalité</label>
                             <select class="form-select" name="municipality">
                                 <option value="">Sélectionnez...</option>
                                 {% for mun in municipalities %}
@@ -75,8 +205,8 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Bio</label>
-                            <textarea class="form-control" name="bio" rows="3">{{ form.bio.value|default:'' }}</textarea>
+                            <label class="form-label fw-bold">Bio</label>
+                            <textarea class="form-control" name="bio" rows="3" placeholder="Décrivez-vous en quelques mots...">{{ form.bio.value|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -93,4 +223,28 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Afficher l'aperçu de l'image sélectionnée
+    document.getElementById('id_image').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                let imgElement = document.getElementById('profile-image');
+                if (!imgElement) {
+                    imgElement = document.createElement('img');
+                    imgElement.id = 'profile-image';
+                    imgElement.className = 'rounded-circle mb-3';
+                    imgElement.style.width = '150px';
+                    imgElement.style.height = '150px';
+                    imgElement.style.objectFit = 'cover';
+                    document.querySelector('.text-center').insertBefore(imgElement, document.querySelector('.file-input-label'));
+                }
+                imgElement.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
 {% endblock %}

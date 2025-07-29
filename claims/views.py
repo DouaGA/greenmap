@@ -122,9 +122,15 @@ def dashboard(request):
     return render(request, 'claims/dashboard.html', context)
 @login_required
 def claim_map(request):
-    claims = Claim.objects.all()
-    return render(request, 'claims/map.html', {'claims': claims})
-
+    # Récupérer toutes les municipalités pour le filtre
+    municipalities = Municipality.objects.all().order_by('name')
+    claim_types = ClaimType.objects.all()
+    
+    context = {
+        'municipalities': municipalities,
+        'claim_types': claim_types
+    }
+    return render(request, 'claims/map.html', context)
 @login_required
 def claim_stats(request):
     # Statistiques globales
@@ -198,13 +204,15 @@ def claim_stats(request):
 
 @login_required
 def claim_detail(request, claim_id):
-    claim = get_object_or_404(Claim, id=claim_id)
-    context = {
-        'claim': claim,
-        'page_title': f'Détails de la réclamation #{claim.id}'
-    }
-    return render(request, 'claims/claim_detail.html', context)
-
+    try:
+        claim = get_object_or_404(Claim, id=claim_id)
+        context = {
+            'claim': claim,
+            'page_title': f'Détails de la réclamation #{claim.id}'
+        }
+        return render(request, 'claims/claim_detail.html', context)
+    except Http404:
+        return render(request, '404.html', {'message': f'La réclamation #{claim_id} n\'existe pas'}, status=404)
 
 @login_required
 def api_claim_details(request, claim_id):
@@ -227,18 +235,18 @@ def api_claim_details(request, claim_id):
 @require_GET
 def api_claims(request):
     # Récupération des paramètres de filtre
-    status = request.GET.get('status')
-    claim_type = request.GET.get('claim_type')
-    date = request.GET.get('date')
+    status = request.GET.get('status', 'all')
+    claim_type = request.GET.get('type', 'all')
+    date = request.GET.get('date', None)
     
     # Filtrage des réclamations
     claims = Claim.objects.all()
     
-    if status and status != 'all':
+    if status != 'all':
         claims = claims.filter(status=status)
     
-    if claim_type and claim_type != 'all':
-        claims = claims.filter(claim_type_id=claim_type)
+    if claim_type != 'all':
+        claims = claims.filter(claim_type__name=claim_type)
     
     if date:
         try:
@@ -253,14 +261,14 @@ def api_claims(request):
         data.append({
             'id': claim.id,
             'title': claim.title,
-            'description': claim.description,
-            'location_lat': float(claim.location_lat),
-            'location_lng': float(claim.location_lng),
+            'description': getattr(claim, 'description', ''),  # Safe access to description
+            'location_lat': claim.location_lat,
+            'location_lng': claim.location_lng,
             'status': claim.status,
             'status_display': claim.get_status_display(),
             'claim_type': {
-                'id': claim.claim_type.id,
-                'name': claim.claim_type.name
+                'id': claim.claim_type.id if claim.claim_type else None,
+                'name': claim.claim_type.name if claim.claim_type else None
             },
             'created_at': claim.created_at.isoformat(),
             'updated_at': claim.updated_at.isoformat() if claim.updated_at else None,

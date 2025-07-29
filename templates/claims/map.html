@@ -6,67 +6,198 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
 <style>
-    #map {
-        height: 600px;
-        width: 100%;
-        border-radius: 8px;
-        margin-bottom: 20px;
+    :root {
+        --primary-color: #4361ee;
+        --secondary-color: #3f37c9;
+        --accent-color: #4895ef;
+        --dark-color: #2b2d42;
+        --light-color: #f8f9fa;
+        --success-color: #4cc9f0;
+        --warning-color: #f8961e;
+        --danger-color: #f72585;
     }
+    
+    #map {
+        height: 70vh;
+        width: 100%;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    #map:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
     .marker-icon {
-        background-color: #3388ff;
+        background-color: var(--primary-color);
         border-radius: 50%;
         border: 3px solid white;
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: bold;
         font-size: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
+    
+    .marker-icon:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
     .pending {
-        background-color: #ffc107; /* Jaune */
+        background-color: var(--warning-color);
     }
+    
     .accepted {
-        background-color: #28a745; /* Vert */
+        background-color: var(--success-color);
     }
+    
     .rejected {
-        background-color: #dc3545; /* Rouge */
+        background-color: var(--danger-color);
     }
+    
     .info-window {
-        min-width: 250px;
+        min-width: 280px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+    
+    .info-window h5 {
+        color: var(--dark-color);
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .info-window img {
+        border-radius: 6px;
+        margin-top: 10px;
+        transition: transform 0.3s ease;
+    }
+    
+    .info-window img:hover {
+        transform: scale(1.03);
+    }
+    
     .filter-container {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
     }
+    
+    .filter-container:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
     .waste-icon {
         width: 20px;
         height: 20px;
-        margin-right: 5px;
+        margin-right: 8px;
         display: inline-block;
         vertical-align: middle;
     }
+    
     .search-btn {
-        height: 38px;
+        height: 42px;
         margin-top: 32px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        letter-spacing: 0.5px;
     }
+    
+    .search-btn:hover {
+        transform: translateY(-2px);
+    }
+    
     .legend {
-        padding: 10px;
+        padding: 12px;
         background: white;
-        border-radius: 5px;
-        box-shadow: 0 0 15px rgba(0,0,0,0.2);
-        line-height: 1.5;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.15);
+        line-height: 1.6;
+        font-size: 14px;
     }
+    
     .legend i {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         float: left;
         margin-right: 8px;
-        opacity: 0.7;
+        border-radius: 3px;
+    }
+    
+    .leaflet-popup-content-wrapper {
+        border-radius: 8px !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2) !important;
+        transition: all 0.3s ease;
+    }
+    
+    .leaflet-popup-content-wrapper:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.25) !important;
+    }
+    
+    .leaflet-popup-tip {
+        box-shadow: none !important;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-pending {
+        background-color: var(--warning-color);
+        color: white;
+    }
+    
+    .badge-accepted {
+        background-color: var(--success-color);
+        color: white;
+    }
+    
+    .badge-rejected {
+        background-color: var(--danger-color);
+        color: white;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .action-buttons .btn {
+        flex: 1;
+        font-size: 13px;
+        padding: 6px 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    @media (max-width: 768px) {
+        #map {
+            height: 60vh;
+        }
+        
+        .search-btn {
+            margin-top: 15px;
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
@@ -74,14 +205,14 @@
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Carte Interactive des Signalements</h1>
+        <h1 class="h2"><i class="fas fa-map-marked-alt mr-2"></i>Carte Interactive des Signalements</h1>
     </div>
 
     <div class="filter-container">
         <div class="row">
             <div class="col-md-3">
                 <div class="form-group">
-                    <label for="status-filter">Statut</label>
+                    <label for="status-filter" class="font-weight-bold">Statut</label>
                     <select id="status-filter" class="form-control">
                         <option value="all">Tous statuts</option>
                         <option value="pending">En attente</option>
@@ -92,7 +223,7 @@
             </div>
             <div class="col-md-3">
                 <div class="form-group">
-                    <label for="type-filter">Type :</label>
+                    <label for="type-filter" class="font-weight-bold">Type :</label>
                     <select id="type-filter" class="form-control">
                         <option value="all">Tous types</option>
                         <optgroup label="Déchets">
@@ -116,16 +247,16 @@
             </div>
             <div class="col-md-3">
                 <div class="form-group">
-                    <label for="date-filter">Date</label>
+                    <label for="date-filter" class="font-weight-bold">Date</label>
                     <input type="date" id="date-filter" class="form-control">
                 </div>
             </div>
             <div class="col-md-3">
                 <button id="search-btn" class="btn btn-primary search-btn">
-                    <i class="fas fa-search"></i> Rechercher
+                    <i class="fas fa-search mr-2"></i> Rechercher
                 </button>
-                <button id="reset-btn" class="btn btn-secondary search-btn ml-2">
-                    <i class="fas fa-undo"></i> Réinitialiser
+                <button id="reset-btn" class="btn btn-outline-secondary search-btn ml-2">
+                    <i class="fas fa-undo mr-2"></i> Réinitialiser
                 </button>
             </div>
         </div>
@@ -139,18 +270,23 @@
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation de la carte
-    const map = L.map('map').setView([36.7525, 3.0420], 12); // Centré sur Alger
+    // Initialisation de la carte avec animation
+    const map = L.map('map', {
+        zoomAnimation: true,
+        fadeAnimation: true,
+        markerZoomAnimation: true
+    }).setView([36.7525, 3.0420], 12);
     
-    // Couche OpenStreetMap
+    // Couche OpenStreetMap avec meilleur rendu
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        detectRetina: true
     }).addTo(map);
 
     // Dictionnaire des marqueurs
     let markers = {};
     
-    // Icônes personnalisées avec couleur par type de signalement
+    // Icônes personnalisées avec animation
     function createCustomIcon(claim) {
         const statusClass = claim.status === 'pending' ? 'pending' : 
                           claim.status === 'accepted' ? 'accepted' : 'rejected';
@@ -185,11 +321,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return L.divIcon({
             html: iconHtml,
             className: 'custom-marker',
-            iconSize: [30, 30]
+            iconSize: [32, 32],
+            popupAnchor: [0, -15]
         });
     }
 
-    // Ajouter une légende
+    // Ajouter une légende améliorée
     function addLegend() {
         const legend = L.control({position: 'bottomright'});
 
@@ -224,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'other': '#800080'
             };
 
-            let labels = ['<strong>Types de signalement</strong>'];
+            let labels = ['<strong style="font-size:15px">Types de signalement</strong><br>'];
             
             for (const type in types) {
                 labels.push(
@@ -232,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 );
             }
             
-            labels.push('<br><strong>Statuts</strong>');
+            labels.push('<br><strong style="font-size:15px">Statuts</strong><br>');
             labels.push('<i style="background:#ffc107"></i> En attente');
             labels.push('<i style="background:#28a745"></i> Accepté');
             labels.push('<i style="background:#dc3545"></i> Rejeté');
@@ -244,6 +381,19 @@ document.addEventListener('DOMContentLoaded', function() {
         legend.addTo(map);
     }
 
+    // Animation pour les marqueurs
+    function animateMarker(marker) {
+        marker.setIcon(createCustomIcon(marker.claim));
+        
+        const icon = marker.getElement();
+        if (icon) {
+            icon.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                icon.style.transform = 'scale(1)';
+            }, 300);
+        }
+    }
+
     // Charger les signalements avec filtres
     function loadClaims() {
         const status = document.getElementById('status-filter').value;
@@ -253,88 +403,87 @@ document.addEventListener('DOMContentLoaded', function() {
         // Construction de l'URL avec les filtres
         let url = '{% url "api_claims" %}?';
         if (status !== 'all') url += `status=${status}&`;
-        if (claimType !== 'all') url += `claim_type=${claimType}&`;
+        if (claimType !== 'all') url += `type=${claimType}&`;
         if (date) url += `date=${date}`;
         
-        // Supprimer les marqueurs existants
-        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        // Supprimer les marqueurs existants avec animation
+        Object.values(markers).forEach(marker => {
+            map.removeLayer(marker);
+        });
         markers = {};
         
-        // Afficher un loader pendant le chargement
+        // Afficher un loader stylé pendant le chargement
         const loader = L.marker(map.getCenter(), {
             icon: L.divIcon({
-                html: '<div class="spinner-border text-primary"></div>',
+                html: '<div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>',
                 className: 'loader-marker',
-                iconSize: [40, 40]
+                iconSize: [60, 60]
             })
         }).addTo(map);
         
-        // Requête AJAX
+        // Requête AJAX avec gestion d'erreur améliorée
         fetch(url, {
-    headers: {
-        'X-CSRFToken': '{{ csrf_token }}',
-        'Accept': 'application/json',
-    },
-    credentials: 'same-origin'
-})
-.then(response => {
-    // Vérifiez d'abord le content-type
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-        return response.text().then(text => {
-            throw new Error(`Réponse non-JSON: ${text.substring(0, 100)}`);
-        });
-    }
-    return response.json();
-})
-.then(data => {
-    // Traitement des données...
-})
-.catch(error => {
-    console.error('Erreur:', error);
-    // Affichez un message d'erreur plus clair à l'utilisateur
-    L.marker(map.getCenter(), {
-        icon: L.divIcon({
-            html: `<div class="alert alert-danger">
-                     Erreur lors du chargement: ${error.message}
-                   </div>`,
-            className: 'error-marker',
-            iconSize: [200, 50]
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin'
         })
-    }).addTo(map);
-});
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erreur réseau');
+            }
+            return response.json();
+        })
+        .then(data => {
+            map.removeLayer(loader);
             
-            // Ajouter tous les marqueurs
+            // Ajouter tous les marqueurs avec animation
             data.forEach(claim => {
                 const marker = L.marker(
                     [claim.location_lat, claim.location_lng],
-                    { icon: createCustomIcon(claim) }
+                    { 
+                        icon: createCustomIcon(claim),
+                        claim: claim // Stocker les données du claim dans le marqueur
+                    }
                 ).addTo(map);
                 
-                // Contenu de la popup
+                // Contenu de la popup enrichi
                 const popupContent = `
                     <div class="info-window">
-                        <h5>${claim.title}</h5>
-                        <p><strong>Type:</strong> ${claim.claim_type?.name || 'Non spécifié'}</p>
-                        <p><strong>Statut:</strong> ${claim.status_display || claim.status}</p>
-                        <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
-                        <p>${claim.description?.substring(0, 100) || ''}${claim.description?.length > 100 ? '...' : ''}</p>
-                        ${claim.image_url ? `<img src="${claim.image_url}" style="max-width: 100%; max-height: 150px; margin-top: 10px;">` : ''}
+                        <h5>${claim.title || 'Signalement sans titre'}</h5>
+                        <p><strong><i class="fas fa-tag mr-2"></i>Type:</strong> ${claim.claim_type?.name || 'Non spécifié'}</p>
+                        <p><strong><i class="fas fa-info-circle mr-2"></i>Statut:</strong> 
+                            <span class="status-badge badge-${claim.status}">${claim.status_display || claim.status}</span>
+                        </p>
+                        <p><strong><i class="far fa-calendar-alt mr-2"></i>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
+                        <p><strong><i class="fas fa-align-left mr-2"></i>Description:</strong> 
+                            ${claim.description?.substring(0, 100) || 'Aucune description'}${claim.description?.length > 100 ? '...' : ''}
+                        </p>
+                        ${claim.image_url ? `
+                        <div class="text-center">
+                            <img src="${claim.image_url}" class="img-fluid" 
+                                 style="max-height: 150px; cursor: pointer;" 
+                                 onclick="window.open('${claim.image_url}', '_blank')">
+                        </div>` : ''}
+                        
                         ${claim.status === 'pending' ? `
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-success" 
+                        <div class="action-buttons">
+                            <button class="btn btn-success" 
                                     onclick="updateClaimStatus(${claim.id}, 'accepted')">
-                                Accepter
+                                <i class="fas fa-check mr-1"></i> Accepter
                             </button>
-                            <button class="btn btn-sm btn-danger" 
+                            <button class="btn btn-danger" 
                                     onclick="updateClaimStatus(${claim.id}, 'rejected')">
-                                Rejeter
+                                <i class="fas fa-times mr-1"></i> Rejeter
                             </button>
                         </div>
                         ` : ''}
-                        <div class="mt-2">
-                            <a href="{% url 'claim_detail' 0 %}".replace('0', ${claim.id}) class="btn btn-sm btn-info">
-                                Voir détails
+                        
+                        <div class="action-buttons">
+                            <a href="{% url 'claim_detail' 0 %}".replace('0', ${claim.id}) 
+                               class="btn btn-info">
+                                <i class="fas fa-eye mr-1"></i> Voir détails
                             </a>
                         </div>
                     </div>
@@ -342,62 +491,103 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 marker.bindPopup(popupContent);
                 markers[claim.id] = marker;
+                
+                // Animation à l'ajout
+                setTimeout(() => {
+                    animateMarker(marker);
+                }, 100 * (Object.keys(markers).length));
             });
             
-            // Ajuster la vue de la carte pour afficher tous les marqueurs
+            // Ajuster la vue de la carte pour afficher tous les marqueurs avec animation
             if (data.length > 0) {
                 const markerGroup = new L.featureGroup(Object.values(markers));
-                map.fitBounds(markerGroup.getBounds());
+                map.flyToBounds(markerGroup.getBounds(), {
+                    padding: [50, 50],
+                    duration: 1
+                });
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
             map.removeLayer(loader);
             
-            // Afficher un message d'erreur
+            // Afficher un message d'erreur stylé
             L.marker(map.getCenter(), {
                 icon: L.divIcon({
-                    html: '<div class="alert alert-danger">Erreur lors du chargement</div>',
+                    html: `
+                        <div class="alert alert-danger p-2" style="width: 250px;">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            Erreur lors du chargement des données
+                        </div>
+                    `,
                     className: 'error-marker',
-                    iconSize: [200, 50]
+                    iconSize: [250, 50]
                 })
-            }).addTo(map);
+            }).addTo(map).bindPopup(`
+                <div class="alert alert-danger">
+                    <h6>Erreur de chargement</h6>
+                    <p>${error.message || 'Impossible de charger les signalements'}</p>
+                    <button onclick="loadClaims()" class="btn btn-sm btn-warning">
+                        <i class="fas fa-sync-alt mr-1"></i> Réessayer
+                    </button>
+                </div>
+            `).openPopup();
         });
+    }
 
     // Mettre à jour le statut d'un signalement
     window.updateClaimStatus = function(claimId, status) {
-        if (!confirm(`Voulez-vous vraiment ${status === 'accepted' ? 'accepter' : 'rejeter'} cette réclamation ?`)) {
-            return;
-        }
+        const action = status === 'accepted' ? 'accepter' : 'rejeter';
+        const icon = status === 'accepted' ? 'fa-check-circle' : 'fa-times-circle';
         
-        fetch(`{% url 'update_claim_status' 0 'status' %}`
-            .replace('0', claimId)
-            .replace('status', status), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: JSON.stringify({status: status})
-                  })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(text || 'Erreur serveur');
+        Swal.fire({
+            title: `Confirmer l'action`,
+            html: `Voulez-vous vraiment <strong>${action}</strong> ce signalement ?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: status === 'accepted' ? '#28a745' : '#dc3545',
+            confirmButtonText: `<i class="fas ${icon} mr-2"></i>Oui, ${action}`,
+            cancelButtonText: 'Annuler'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const marker = markers[claimId];
+                if (marker) {
+                    marker.setIcon(L.divIcon({
+                        html: '<div class="spinner-border spinner-border-sm text-white"></div>',
+                        className: 'spinner-marker',
+                        iconSize: [30, 30]
+                    }));
+                }
+                
+                fetch(`{% url 'update_claim_status' 0 'status' %}`
+                    .replace('0', claimId)
+                    .replace('status', status), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({status: status})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Succès',
+                            html: `Signalement <strong>${action}é</strong> avec succès`,
+                            icon: 'success',
+                            timer: 1500
+                        });
+                        loadClaims(); // Recharger les marqueurs
+                    } else {
+                        Swal.fire('Erreur', data.message || 'Erreur lors de la mise à jour', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Erreur', "Une erreur est survenue", 'error');
                 });
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                loadClaims(); // Recharger les marqueurs
-            } else {
-                alert(data.message || "Erreur lors de la mise à jour");
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Erreur: " + error.message);
         });
     }
 
