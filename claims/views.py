@@ -206,13 +206,28 @@ def claim_stats(request):
 def claim_detail(request, claim_id):
     try:
         claim = get_object_or_404(Claim, id=claim_id)
+        
+        # Vérifier si l'utilisateur est autorisé à voir ce signalement
+        if not request.user.is_staff and claim.user != request.user:
+            return render(request, 'errors/403.html', status=403)
+            
         context = {
             'claim': claim,
-            'page_title': f'Détails de la réclamation #{claim.id}'
+            'page_title': f'Détails de la réclamation #{claim.id}',
+            'can_edit': request.user.is_staff or claim.user == request.user
         }
         return render(request, 'claims/claim_detail.html', context)
-    except Http404:
-        return render(request, '404.html', {'message': f'La réclamation #{claim_id} n\'existe pas'}, status=404)
+        
+    except Exception as e:
+        # Loguer l'erreur pour le débogage
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur dans claim_detail: {str(e)}")
+        
+        # Retourner une réponse d'erreur générique
+        return render(request, 'errors/500.html', {
+            'error_message': "Une erreur s'est produite lors du chargement des détails du signalement."
+        }, status=500)
 
 @login_required
 def api_claim_details(request, claim_id):

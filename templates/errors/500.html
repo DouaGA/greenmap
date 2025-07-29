@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block title %}Erreur serveur{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-danger text-center">
+        <h1><i class="fas fa-exclamation-triangle"></i> 500 Erreur serveur</h1>
+        <p class="lead">{{ error_message|default:"Une erreur s'est produite sur le serveur." }}</p>
+        <a href="{% url 'home' %}" class="btn btn-primary">Retour à l'accueil</a>
+    </div>
+</div>
+{% endblock %}

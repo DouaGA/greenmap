@@ -265,35 +265,28 @@
     <div id="map"></div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation de la carte avec animation
-    const map = L.map('map', {
-        zoomAnimation: true,
-        fadeAnimation: true,
-        markerZoomAnimation: true
-    }).setView([36.7525, 3.0420], 12);
+    // Initialisation de la carte
+    const map = L.map('map').setView([36.7525, 3.0420], 12);
     
-    // Couche OpenStreetMap avec meilleur rendu
+    // Couche OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        detectRetina: true
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
     // Dictionnaire des marqueurs
     let markers = {};
     
-    // Icônes personnalisées avec animation
+    // Icônes personnalisées
     function createCustomIcon(claim) {
         const statusClass = claim.status === 'pending' ? 'pending' : 
                           claim.status === 'accepted' ? 'accepted' : 'rejected';
         
-        // Couleur par type de signalement
         const typeColors = {
-            // Déchets
             'plastic': '#0095B6',
             'glass': '#00B34D',
             'paper': '#FFD700',
@@ -302,19 +295,19 @@ document.addEventListener('DOMContentLoaded', function() {
             'electronic': '#00008B',
             'hazardous': '#FF0000',
             'construction': '#696969',
-            
-            // Autres
             'hole': '#8B0000',
             'illegal_dumping': '#4B0082',
             'water': '#1E90FF',
             'other': '#800080'
         };
         
-        const color = typeColors[claim.claim_type?.name?.toLowerCase()] || '#3388ff';
+        // Correction: Vérification plus robuste du type de réclamation
+        const claimType = (typeof claim.claim_type === 'string') ? claim.claim_type.toLowerCase() : 'other';
+        const color = typeColors[claimType] || '#3388ff';
         
         const iconHtml = `
             <div class="marker-icon ${statusClass}" style="background-color: ${color}">
-                ${claim.claim_type?.name?.charAt(0).toUpperCase() || claim.id}
+                ${claimType.charAt(0).toUpperCase()}
             </div>
         `;
         
@@ -326,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Ajouter une légende améliorée
+    // Ajouter une légende
     function addLegend() {
         const legend = L.control({position: 'bottomright'});
 
@@ -361,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'other': '#800080'
             };
 
-            let labels = ['<strong style="font-size:15px">Types de signalement</strong><br>'];
+            let labels = ['<strong>Types de signalement</strong><br>'];
             
             for (const type in types) {
                 labels.push(
@@ -369,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 );
             }
             
-            labels.push('<br><strong style="font-size:15px">Statuts</strong><br>');
+            labels.push('<br><strong>Statuts</strong><br>');
             labels.push('<i style="background:#ffc107"></i> En attente');
             labels.push('<i style="background:#28a745"></i> Accepté');
             labels.push('<i style="background:#dc3545"></i> Rejeté');
@@ -381,108 +374,73 @@ document.addEventListener('DOMContentLoaded', function() {
         legend.addTo(map);
     }
 
-    // Animation pour les marqueurs
-    function animateMarker(marker) {
-        marker.setIcon(createCustomIcon(marker.claim));
-        
-        const icon = marker.getElement();
-        if (icon) {
-            icon.style.transform = 'scale(1.2)';
-            setTimeout(() => {
-                icon.style.transform = 'scale(1)';
-            }, 300);
-        }
-    }
-
     // Charger les signalements avec filtres
     function loadClaims() {
         const status = document.getElementById('status-filter').value;
         const claimType = document.getElementById('type-filter').value;
         const date = document.getElementById('date-filter').value;
         
-        // Construction de l'URL avec les filtres
-        let url = '{% url "api_claims" %}?';
+        let url = '/api/claims/?';
         if (status !== 'all') url += `status=${status}&`;
         if (claimType !== 'all') url += `type=${claimType}&`;
         if (date) url += `date=${date}`;
         
-        // Supprimer les marqueurs existants avec animation
+        // Supprimer les marqueurs existants
         Object.values(markers).forEach(marker => {
             map.removeLayer(marker);
         });
         markers = {};
         
-        // Afficher un loader stylé pendant le chargement
+        // Afficher un loader pendant le chargement
         const loader = L.marker(map.getCenter(), {
             icon: L.divIcon({
-                html: '<div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>',
+                html: '<div class="spinner-border text-primary"></div>',
                 className: 'loader-marker',
-                iconSize: [60, 60]
+                iconSize: [40, 40]
             })
         }).addTo(map);
         
-        // Requête AJAX avec gestion d'erreur améliorée
-        fetch(url, {
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Accept': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
+        // Requête AJAX avec meilleure gestion des erreurs
+        fetch(url)
         .then(response => {
             if (!response.ok) {
-                throw new Error('Erreur réseau');
+                throw new Error(`Erreur HTTP: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
             map.removeLayer(loader);
             
-            // Ajouter tous les marqueurs avec animation
+            if (!Array.isArray(data)) {
+                throw new Error('Données reçues invalides');
+            }
+
             data.forEach(claim => {
+                if (!claim.location_lat || !claim.location_lng) {
+                    console.warn('Signalement sans coordonnées:', claim);
+                    return;
+                }
+
                 const marker = L.marker(
                     [claim.location_lat, claim.location_lng],
                     { 
                         icon: createCustomIcon(claim),
-                        claim: claim // Stocker les données du claim dans le marqueur
+                        claim: claim
                     }
                 ).addTo(map);
                 
-                // Contenu de la popup enrichi
                 const popupContent = `
                     <div class="info-window">
                         <h5>${claim.title || 'Signalement sans titre'}</h5>
-                        <p><strong><i class="fas fa-tag mr-2"></i>Type:</strong> ${claim.claim_type?.name || 'Non spécifié'}</p>
-                        <p><strong><i class="fas fa-info-circle mr-2"></i>Statut:</strong> 
-                            <span class="status-badge badge-${claim.status}">${claim.status_display || claim.status}</span>
+                        <p><strong>Type:</strong> ${claim.claim_type || 'Non spécifié'}</p>
+                        <p><strong>Statut:</strong> 
+                            <span class="status-badge badge-${claim.status}">${claim.status}</span>
                         </p>
-                        <p><strong><i class="far fa-calendar-alt mr-2"></i>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
-                        <p><strong><i class="fas fa-align-left mr-2"></i>Description:</strong> 
-                            ${claim.description?.substring(0, 100) || 'Aucune description'}${claim.description?.length > 100 ? '...' : ''}
-                        </p>
-                        ${claim.image_url ? `
-                        <div class="text-center">
-                            <img src="${claim.image_url}" class="img-fluid" 
-                                 style="max-height: 150px; cursor: pointer;" 
-                                 onclick="window.open('${claim.image_url}', '_blank')">
-                        </div>` : ''}
-                        
-                        ${claim.status === 'pending' ? `
-                        <div class="action-buttons">
-                            <button class="btn btn-success" 
-                                    onclick="updateClaimStatus(${claim.id}, 'accepted')">
-                                <i class="fas fa-check mr-1"></i> Accepter
-                            </button>
-                            <button class="btn btn-danger" 
-                                    onclick="updateClaimStatus(${claim.id}, 'rejected')">
-                                <i class="fas fa-times mr-1"></i> Rejeter
-                            </button>
-                        </div>
-                        ` : ''}
+                        <p><strong>Date:</strong> ${new Date(claim.created_at).toLocaleDateString()}</p>
+                        ${claim.description ? `<p><strong>Description:</strong> ${claim.description.substring(0, 100)}${claim.description.length > 100 ? '...' : ''}</p>` : ''}
                         
                         <div class="action-buttons">
-                            <a href="{% url 'claim_detail' 0 %}".replace('0', ${claim.id}) 
-                               class="btn btn-info">
+                            <a href="/claims/${claim.id}" class="btn btn-info">
                                 <i class="fas fa-eye mr-1"></i> Voir détails
                             </a>
                         </div>
@@ -491,104 +449,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 marker.bindPopup(popupContent);
                 markers[claim.id] = marker;
-                
-                // Animation à l'ajout
-                setTimeout(() => {
-                    animateMarker(marker);
-                }, 100 * (Object.keys(markers).length));
             });
             
-            // Ajuster la vue de la carte pour afficher tous les marqueurs avec animation
-            if (data.length > 0) {
+            // Ajuster la vue de la carte si des marqueurs existent
+            if (Object.keys(markers).length > 0) {
                 const markerGroup = new L.featureGroup(Object.values(markers));
-                map.flyToBounds(markerGroup.getBounds(), {
-                    padding: [50, 50],
-                    duration: 1
-                });
+                map.fitBounds(markerGroup.getBounds());
+            } else {
+                showNoResultsMessage();
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
             map.removeLayer(loader);
-            
-            // Afficher un message d'erreur stylé
-            L.marker(map.getCenter(), {
-                icon: L.divIcon({
-                    html: `
-                        <div class="alert alert-danger p-2" style="width: 250px;">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            Erreur lors du chargement des données
-                        </div>
-                    `,
-                    className: 'error-marker',
-                    iconSize: [250, 50]
-                })
-            }).addTo(map).bindPopup(`
-                <div class="alert alert-danger">
-                    <h6>Erreur de chargement</h6>
-                    <p>${error.message || 'Impossible de charger les signalements'}</p>
-                    <button onclick="loadClaims()" class="btn btn-sm btn-warning">
-                        <i class="fas fa-sync-alt mr-1"></i> Réessayer
-                    </button>
-                </div>
-            `).openPopup();
+            showErrorMessage(error.message || 'Erreur de chargement des données');
         });
     }
 
-    // Mettre à jour le statut d'un signalement
-    window.updateClaimStatus = function(claimId, status) {
-        const action = status === 'accepted' ? 'accepter' : 'rejeter';
-        const icon = status === 'accepted' ? 'fa-check-circle' : 'fa-times-circle';
-        
-        Swal.fire({
-            title: `Confirmer l'action`,
-            html: `Voulez-vous vraiment <strong>${action}</strong> ce signalement ?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: status === 'accepted' ? '#28a745' : '#dc3545',
-            confirmButtonText: `<i class="fas ${icon} mr-2"></i>Oui, ${action}`,
-            cancelButtonText: 'Annuler'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const marker = markers[claimId];
-                if (marker) {
-                    marker.setIcon(L.divIcon({
-                        html: '<div class="spinner-border spinner-border-sm text-white"></div>',
-                        className: 'spinner-marker',
-                        iconSize: [30, 30]
-                    }));
-                }
-                
-                fetch(`{% url 'update_claim_status' 0 'status' %}`
-                    .replace('0', claimId)
-                    .replace('status', status), {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({status: status})
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            title: 'Succès',
-                            html: `Signalement <strong>${action}é</strong> avec succès`,
-                            icon: 'success',
-                            timer: 1500
-                        });
-                        loadClaims(); // Recharger les marqueurs
-                    } else {
-                        Swal.fire('Erreur', data.message || 'Erreur lors de la mise à jour', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    Swal.fire('Erreur', "Une erreur est survenue", 'error');
-                });
-            }
-        });
+    function showNoResultsMessage() {
+        L.marker(map.getCenter(), {
+            icon: L.divIcon({
+                html: '<div class="alert alert-info">Aucun résultat trouvé</div>',
+                className: 'info-marker',
+                iconSize: [200, 50]
+            })
+        }).addTo(map).bindPopup(`
+            <div class="alert alert-info">
+                <p>Aucun signalement ne correspond à vos critères de recherche</p>
+            </div>
+        `).openPopup();
+    }
+
+    function showErrorMessage(message) {
+        L.marker(map.getCenter(), {
+            icon: L.divIcon({
+                html: '<div class="alert alert-danger">Erreur de chargement</div>',
+                className: 'error-marker',
+                iconSize: [200, 50]
+            })
+        }).addTo(map).bindPopup(`
+            <div class="alert alert-danger">
+                <p>${message}</p>
+                <button onclick="location.reload()" class="btn btn-sm btn-warning mt-2">
+                    <i class="fas fa-sync-alt mr-1"></i> Réessayer
+                </button>
+            </div>
+        `).openPopup();
     }
 
     // Réinitialiser les filtres
@@ -603,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search-btn').addEventListener('click', loadClaims);
     document.getElementById('reset-btn').addEventListener('click', resetFilters);
 
-    // Chargement initial et ajout de la légende
+    // Chargement initial
     loadClaims();
     addLegend();
 });
