@@ -229,9 +229,8 @@ def claim_detail(request, claim_id):
             'error_message': "Une erreur s'est produite lors du chargement des détails du signalement."
         }, status=500)
 
-@login_required
+@require_GET
 def api_claim_details(request, claim_id):
-    
     try:
         claim = Claim.objects.get(id=claim_id)
         data = {
@@ -242,11 +241,17 @@ def api_claim_details(request, claim_id):
             'status': claim.get_status_display(),
             'date': claim.created_at.strftime("%Y-%m-%d %H:%M"),
             'description': claim.description,
-            'location': f"{claim.location_lat}, {claim.location_lng}" if claim.location_lat else None,
+            'created_by': claim.created_by.username if claim.created_by else None,
+            'municipality': claim.municipality.name if claim.municipality else None,
+            'claim_type': {
+                'id': claim.claim_type.id if claim.claim_type else None,
+                'name': claim.claim_type.name if claim.claim_type else None
+            }
         }
         return JsonResponse(data)
     except Claim.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Réclamation non trouvée'}, status=404)
+    
 @require_GET
 def api_claims(request):
     # Récupération des paramètres de filtre

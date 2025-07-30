@@ -9,7 +9,8 @@ urlpatterns = [
     path('stats/', views.claim_stats, name='claims_stats'),
     path('profile/', views.agent_profile, name='agent_profile'),
     path('export/', views.export_claims, name='export_claims'),
-    path('claims/<int:claim_id>/', views.claim_detail, name='claim_detail'),    path('api/claims/update-status/<int:claim_id>/<str:status>/', 
+    path('api/claims/<int:claim_id>/', views.api_claim_details, name='api_claim_details'),
+    path('api/claims/update-status/<int:claim_id>/<str:status>/', 
          views.update_claim_status, 
          name='update_claim_status'),
     path('api/claims/', views.api_claims, name='api_claims'),  # Modifié

@@ -19,20 +19,14 @@
                     <div class="mb-3">
                         <h6>Informations de la réclamation</h6>
                         <p><strong>ID:</strong> {{ new_reclamation.id }}</p>
-                        <p><strong>Type:</strong> {{ new_reclamation.type }}</p>
-                        <p><strong>Date:</strong> {{ new_reclamation.date }}</p>
-                        <p><strong>Description:</strong> {{ new_reclamation.description }}</p>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <h6>Localisation</h6>
-                        <div id="reclamation-map" style="height: 200px; background-color: #eee; border-radius: 4px;">
-                            <p class="text-center py-5">Carte interactive montrant l'emplacement</p>
-                        </div>
+                        <p><strong>Type:</strong> {{ new_reclamation.claim_type.name|default:"Non spécifié" }}</p>
+                        <p><strong>Date:</strong> {{ new_reclamation.created_at|date:"d/m/Y H:i" }}</p>
+                        <p><strong>Description:</strong> {{ new_reclamation.description|default:"Aucune description" }}</p>
+                        <p><strong>Municipalité:</strong> {{ new_reclamation.municipality.name|default:"Non spécifiée" }}</p>
+                        <p><strong>Créé par:</strong> {{ new_reclamation.created_by.username }}</p>
                     </div>
                 </div>
                 
-                <!-- Remplacer la section des actions par -->
                 <div class="col-md-4 d-flex align-items-center">
                     <div class="d-grid gap-3 w-100">
                         <form method="post" action="{% url 'update_claim_status' new_reclamation.id 'accepted' %}">
@@ -49,15 +43,14 @@
                         </form>
                     </div>
                 </div>
-                            </div>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-success">
-                                <i class="fas fa-check-circle me-2"></i>Toutes les réclamations ont été traitées !
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>Toutes les réclamations ont été traitées !
+            </div>
+            {% endif %}
+        </div>
+    </div>
                     
     <!-- Section des statistiques et historique -->
     <div class="card">
@@ -94,6 +87,7 @@
                             <th>ID</th>
                             <th>Type</th>
                             <th>Date</th>
+                            <th>Municipalité</th>
                             <th>Statut</th>
                             <th>Actions</th>
                         </tr>
@@ -102,8 +96,9 @@
                         {% for reclamation in reclamations %}
                         <tr class="status-{{ reclamation.status }}">
                             <td>{{ reclamation.id }}</td>
-                            <td>{{ reclamation.type }}</td>
-                            <td>{{ reclamation.date }}</td>
+                            <td>{{ reclamation.claim_type.name|default:"-" }}</td>
+                            <td>{{ reclamation.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ reclamation.municipality.name|default:"-" }}</td>
                             <td>
                                 {% if reclamation.status == 'accepted' %}
                                     <span class="badge bg-success">Acceptée</span>
@@ -121,7 +116,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center">Aucune réclamation trouvée</td>
+                            <td colspan="6" class="text-center">Aucune réclamation trouvée</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -132,8 +127,9 @@
 </div>
 
 <!-- Modal pour les détails -->
+<!-- Modal pour les détails -->
 <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Détails de la réclamation</h5>
@@ -143,162 +139,161 @@
                 Chargement en cours...
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-secondary" id="closeModalButton">Fermer</button>
             </div>
         </div>
     </div>
 </div>
 
 {% endblock %}
-
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation de la carte
-    function initMap() {
-        if ({{ new_reclamation|yesno:"true,false" }}) {
-            const lat = {{ new_reclamation.latitude|default:0 }};
-            const lng = {{ new_reclamation.longitude|default:0 }};
-            
-            if (lat && lng) {
-                const map = L.map('reclamation-map').setView([lat, lng], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                L.marker([lat, lng]).addTo(map)
-                    .bindPopup("Emplacement de la réclamation");
-            }
-        }
-    }
+    // Initialisation du modal
+    const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    const detailsContent = document.getElementById('detailsContent');
+    const closeModalButton = document.getElementById('closeModalButton');
     
-    // Gestion des boutons d'action
-    const approveBtn = document.getElementById('approveBtn');
-    const rejectBtn = document.getElementById('rejectBtn');
-    const reclamationId = {{ new_reclamation.id|default:'null' }};
-    
-    function handleAction(action) {
-        if (!reclamationId || reclamationId === 'null') {
-            alert("Aucune réclamation à traiter !");
-            return;
-        }
-        
-        const confirmMessages = {
-            'approve': {
-                message: `Voulez-vous vraiment approuver la réclamation #${reclamationId} ?`,
-                success: `Réclamation #${reclamationId} approuvée avec succès !`
-            },
-            'reject': {
-                message: `Attention ! La réclamation #${reclamationId} sera définitivement refusée. Continuer ?`,
-                success: `Réclamation #${reclamationId} refusée avec succès !`
-            }
-        };
-        
-        if (!confirm(confirmMessages[action].message)) {
-            return;
-        }
-        
-        fetch(`/api/reclamations/${reclamationId}/process/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ 
-                action: action,
-                reclamation_id: reclamationId
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Erreur réseau');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                alert(confirmMessages[action].success);
-                window.location.reload();
-            } else {
-                alert(`Erreur: ${data.message || 'Action non effectuée'}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Une erreur est survenue lors du traitement');
-        });
-    }
-    
-    if (approveBtn) {
-        approveBtn.addEventListener('click', () => handleAction('approve'));
-    }
-    
-    if (rejectBtn) {
-        rejectBtn.addEventListener('click', () => handleAction('reject'));
-    }
-    
-    // Filtrage du tableau
-    const filterBtn = document.getElementById('filterBtn');
-    const resetFilterBtn = document.getElementById('resetFilterBtn');
-    const statusFilter = document.getElementById('statusFilter');
-    
-    filterBtn.addEventListener('click', function() {
-        const status = statusFilter.value;
-        const rows = document.querySelectorAll('tbody tr');
-        
-        rows.forEach(row => {
-            if (status === 'all') {
-                row.style.display = '';
-            } else {
-                if (row.classList.contains(`status-${status}`)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            }
-        });
-    });
-    
-    resetFilterBtn.addEventListener('click', function() {
-        statusFilter.value = 'all';
-        const rows = document.querySelectorAll('tbody tr');
-        rows.forEach(row => row.style.display = '');
+    // Gestion du bouton Fermer
+    closeModalButton.addEventListener('click', function() {
+        detailsModal.hide();
     });
     
     // Gestion des détails
-    const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
-    const detailsContent = document.getElementById('detailsContent');
-    
     document.querySelectorAll('.view-details').forEach(btn => {
         btn.addEventListener('click', function() {
             const id = this.getAttribute('data-id');
+            detailsContent.innerHTML = `
+                <div class="text-center my-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p>Chargement des détails...</p>
+                </div>
+            `;
             
-            fetch(`/api/reclamations/${id}/details/`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
+            detailsModal.hide();
+            detailsModal.show();
+            
+            const apiEndpoints = [
+                `/api/claims/${id}/`,
+                `/claims/api/claims/${id}/`,
+                `/api/reclamations/${id}/`,
+                `/api/claim/${id}/detail/`
+            ];
+            
+            let attempts = 0;
+            
+            function tryFetch(endpointIndex) {
+                if (endpointIndex >= apiEndpoints.length) {
+                    showError("Impossible de charger les détails (API non disponible)");
+                    return;
+                }
+                
+                fetch(apiEndpoints[endpointIndex])
+                    .then(response => {
+                        if (!response.ok) throw new Error('Erreur HTTP');
+                        return response.json();
+                    })
+                    .then(data => {
+                        const claimData = Array.isArray(data) ? data[0] : data;
+                        
+                        if (!claimData || claimData.error) {
+                            throw new Error('Données manquantes');
+                        }
+                        
                         detailsContent.innerHTML = `
-                            <p><strong>ID:</strong> ${data.id}</p>
-                            <p><strong>Type:</strong> ${data.type}</p>
-                            <p><strong>Date:</strong> ${data.date}</p>
-                            <p><strong>Statut:</strong> ${data.status}</p>
-                            <p><strong>Description:</strong> ${data.description}</p>
-                            ${data.location ? `<p><strong>Localisation:</strong> ${data.location}</p>` : ''}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>ID:</strong> ${claimData.id || 'N/A'}</p>
+                                    <p><strong>Type:</strong> ${claimData.claim_type?.name || claimData.type || 'Non spécifié'}</p>
+                                    <p><strong>Date:</strong> ${claimData.created_at ? new Date(claimData.created_at).toLocaleString() : claimData.date || 'N/A'}</p>
+                                    <p><strong>Statut:</strong> ${claimData.status || 'Inconnu'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Créé par:</strong> ${claimData.created_by?.username || claimData.user || 'Non spécifié'}</p>
+                                    <p><strong>Municipalité:</strong> ${claimData.municipality?.name || claimData.location || 'Non spécifiée'}</p>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>Description</h6>
+                                <p>${claimData.description || 'Aucune description disponible'}</p>
+                            </div>
+                            ${claimData.image_url ? `
+                            <div class="mt-3">
+                                <h6>Image</h6>
+                                <img src="${claimData.image_url}" class="img-fluid rounded" alt="Image de la réclamation">
+                            </div>` : ''}
                         `;
-                        detailsModal.show();
-                    } else {
-                        detailsContent.innerHTML = `<div class="alert alert-danger">${data.message || 'Erreur lors du chargement des détails'}</div>`;
-                        detailsModal.show();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    detailsContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des détails</div>';
-                    detailsModal.show();
-                });
+                    })
+                    .catch(error => {
+                        console.error(`Attempt ${endpointIndex + 1} failed:`, error);
+                        attempts++;
+                        if (attempts < 3) {
+                            setTimeout(() => tryFetch(endpointIndex + 1), 1000);
+                        } else {
+                            showError("Erreur lors du chargement des détails");
+                        }
+                    });
+            }
+            
+            function showError(message) {
+                detailsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${message}
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="window.location.reload()">
+                            <i class="fas fa-sync-alt me-1"></i> Réessayer
+                        </button>
+                    </div>
+                    <div class="mt-3">
+                        <p>Vous pouvez aussi essayer de :</p>
+                        <ul>
+                            <li>Vérifier votre connexion internet</li>
+                            <li>rafraîchir la page (F5)</li>
+                            <li>contacter l'administrateur si le problème persiste</li>
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            tryFetch(0);
         });
     });
-    
-    // Initialiser la carte
-    initMap();
+
+    // Gestion du filtrage côté client
+    const statusFilter = document.getElementById('statusFilter');
+    const filterBtn = document.getElementById('filterBtn');
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    const tableRows = document.querySelectorAll('tbody tr');
+
+    function applyFilter(status) {
+        tableRows.forEach(row => {
+            if (status === 'all' || row.classList.contains(`status-${status}`)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    filterBtn.addEventListener('click', function() {
+        const status = statusFilter.value;
+        applyFilter(status);
+    });
+
+    resetFilterBtn.addEventListener('click', function() {
+        statusFilter.value = 'all';
+        applyFilter('all');
+    });
+
+    // Appliquer le filtre au chargement si paramètre dans l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = urlParams.get('status');
+    if (statusParam) {
+        statusFilter.value = statusParam;
+        applyFilter(statusParam);
+    }
 });
 </script>
 {% endblock %}
